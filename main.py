@@ -71,14 +71,15 @@ class PointsApp:
         # Окно для настроек с вкладками
         win = ctk.CTkToplevel(self.root)
         win.title("Настройки приложения")
-        win.geometry("700x400")
+        win.geometry("900x600")  # увеличена ширина и высота окна
         win.grab_set()
 
-        tabview = ctk.CTkTabview(win, width=650, height=340)
-        tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        self.tabview = ctk.CTkTabview(win, width=850, height=540)
+        self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
+        self.tabview.grid_columnconfigure(0, weight=1)
 
         # === Вкладка 1: Основные настройки ===
-        tab_main = tabview.add("Основные")
+        self.tab_main = self.tabview.add("Основные")
         settings_fields = [
             ("rootFolder", "Папка для поиска файлов для парсинга (xml, json и т.д.)"),
             (
@@ -87,7 +88,7 @@ class PointsApp:
             ),
             ("cityDataFile", "Файл для хранения данных о городах (txt, UTF-8)"),
         ]
-        settings_frame = ctk.CTkFrame(tab_main)
+        settings_frame = ctk.CTkFrame(self.tab_main)
         settings_frame.pack(fill="both", expand=True, padx=10, pady=10)
         self.settings_entries = {}
         row = 0
@@ -122,7 +123,7 @@ class PointsApp:
                 btn.grid(row=row, column=2, padx=2, pady=(0, 8), sticky="w")
             row += 1
 
-        btn_frame = ctk.CTkFrame(tab_main)
+        btn_frame = ctk.CTkFrame(self.tab_main)
         btn_frame.pack(fill="x", padx=10, pady=(0, 10))
         load_btn = ctk.CTkButton(
             btn_frame, text="Загрузить из файла", command=self.reload_settings_from_file
@@ -136,23 +137,20 @@ class PointsApp:
         close_btn.pack(side="right", padx=5)
 
         # === Вкладка 2: Города ===
-        tab_cities = tabview.add("Города")
-        city_frame = ctk.CTkFrame(tab_cities)
+        self.tab_cities = self.tabview.add("Города")
+        city_frame = ctk.CTkFrame(self.tab_cities)
         city_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Метка поиска
-        print("Создаю search_label")
+
         search_label = ctk.CTkLabel(
             city_frame, text="Поиск города (ориг. назв.):", anchor="w"
         )
         search_label.grid(row=0, column=0, sticky="w", padx=2, pady=(5, 0))
 
-        # Поле поиска
-        print("Создаю city_search_entry")
         self.city_search_entry = ctk.CTkEntry(city_frame, width=300)
         self.city_search_entry.grid(row=1, column=0, sticky="w", padx=2, pady=0)
 
-        # Разрешить вставку из буфера обмена (Ctrl+V для обеих раскладок)
         def paste_event(event=None):
             try:
                 clipboard = self.root.clipboard_get()
@@ -168,7 +166,6 @@ class PointsApp:
         self.city_search_entry.bind("<Shift-Insert>", paste_event)
 
         # Кнопка поиска
-        print("Создаю search_btn")
         search_btn = ctk.CTkButton(
             city_frame, text="Найти", width=80, command=self.city_search_action
         )
@@ -206,6 +203,126 @@ class PointsApp:
         win.lift()
         win.update()
         self.settings_window = win
+
+        # === Вкладка 3: Все точки ===
+        from src.allpoints_manager import AllPointsManager
+
+        self.tab_points = self.tabview.add("Точки")
+        points_frame = ctk.CTkFrame(self.tab_points)
+        points_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Путь к базе точек
+        points_path = self.settings_manager.get("mainDataCSV", "data/AllPoint.csv")
+        self.allpoints_manager = AllPointsManager(points_path)
+
+        # Фильтры поиска: сдвинуты к левому краю, друг за другом, затем кнопка поиска
+        filter_label = ctk.CTkLabel(
+            points_frame, text="Фильтр (город, дата, широта, долгота):", anchor="w"
+        )
+        filter_label.grid(
+            row=0, column=0, columnspan=5, sticky="w", padx=2, pady=(5, 0)
+        )
+        # --- edit-поля поиска: одинаковая ширина и равные отступы ---
+        filter_entry_width = 120
+        filter_padx = 8
+        self.filter_city = ctk.CTkEntry(
+            points_frame, width=filter_entry_width, placeholder_text="Город"
+        )
+        self.filter_city.grid(
+            row=1, column=0, padx=(2, filter_padx), pady=2, sticky="w"
+        )
+        self.filter_date = ctk.CTkEntry(
+            points_frame, width=filter_entry_width, placeholder_text="Дата"
+        )
+        self.filter_date.grid(
+            row=1, column=1, padx=(0, filter_padx), pady=2, sticky="w"
+        )
+        self.filter_lat = ctk.CTkEntry(
+            points_frame, width=filter_entry_width, placeholder_text="Широта"
+        )
+        self.filter_lat.grid(row=1, column=2, padx=(0, filter_padx), pady=2, sticky="w")
+        self.filter_lon = ctk.CTkEntry(
+            points_frame, width=filter_entry_width, placeholder_text="Долгота"
+        )
+        self.filter_lon.grid(row=1, column=3, padx=(0, filter_padx), pady=2, sticky="w")
+
+        # --- функция поиска и кнопка поиска ---
+        def update_points_fields():
+            city = self.filter_city.get().strip()
+            date = self.filter_date.get().strip()
+            lat = self.filter_lat.get().strip()
+            lon = self.filter_lon.get().strip()
+            # Если все фильтры пустые, не выполнять поиск и не выводить результат
+            if not (lat or lon or city or date):
+                for entry in self.point_result_entries.values():
+                    entry.delete(0, "end")
+                return
+            if lat and lon:
+                records = self.allpoints_manager.find_by_lon_lat(lon, lat)
+            elif city:
+                records = self.allpoints_manager.find_by_city(city)
+            elif date:
+                records = self.allpoints_manager.find_by_date(date)
+            else:
+                records = []
+            # edit-поля: очищаем
+            for entry in self.point_result_entries.values():
+                entry.delete(0, "end")
+            # Только первое совпадение
+            if records:
+                first = records[0]
+                for key, entry in self.point_result_entries.items():
+                    entry.insert(0, first.data.get(key, ""))
+
+        search_btn = ctk.CTkButton(
+            points_frame, text="Поиск", width=80, command=update_points_fields
+        )
+        search_btn.grid(row=1, column=4, padx=(0, 2), pady=2, sticky="w")
+
+        # --- отступ между строкой поиска и результатами ---
+        spacer = ctk.CTkLabel(points_frame, text="")
+        spacer.grid(row=2, column=0, columnspan=5, pady=(10, 0))
+
+        # --- edit-поля для первого совпадения ---
+        edit_labels = [
+            ("Дата:", "Data"),
+            ("Время:", "Time"),
+            ("Широта:", "Lat_WGS84"),
+            ("Долгота:", "Lon_WGS84"),
+            ("X (СК-42):", "X_SK-42_Gauss_Kruger"),
+            ("Y (СК-42):", "Y_SK-42_Gauss_Kruger"),
+            ("Город:", "City_Value"),
+            ("Страна:", "Country_Value"),
+            ("Описание района:", "Description of the area"),
+            ("Описание региона:", "Description of the region"),
+            ("Оригинальный текст:", "Original text"),
+        ]
+        self.point_result_entries = {}
+
+        for i, (label_text, key) in enumerate(edit_labels):
+            label = ctk.CTkLabel(points_frame, text=label_text, anchor="w")
+            label.grid(row=3 + i, column=0, sticky="w", padx=2, pady=(2, 0))
+            entry = ctk.CTkEntry(points_frame, width=600)
+            entry.grid(
+                row=3 + i, column=1, columnspan=4, sticky="w", padx=2, pady=(2, 0)
+            )
+            self.point_result_entries[key] = entry
+
+        # edit-поля для первого совпадения (начиная с row=3), все одинаковой ширины
+        for i, (label_text, key) in enumerate(edit_labels):
+            label = ctk.CTkLabel(points_frame, text=label_text, anchor="w")
+            label.grid(row=3 + i, column=0, sticky="w", padx=2, pady=(2, 0))
+            entry = ctk.CTkEntry(points_frame, width=600)
+            entry.grid(
+                row=3 + i, column=1, columnspan=4, sticky="w", padx=2, pady=(2, 0)
+            )
+            self.point_result_entries[key] = entry
+
+        # (удалено дублирующее создание кнопки поиска)
+
+        # edit-поля должны быть пустыми при открытии вкладки
+        for entry in self.point_result_entries.values():
+            entry.delete(0, "end")
 
     def city_search_action(self):
         query = self.city_search_entry.get().strip()

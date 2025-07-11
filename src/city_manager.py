@@ -101,11 +101,16 @@ class CityManager:
         return None
 
     def search(self, name: str) -> Optional[CityRecord]:
-        # Поиск по английскому или русскому названию
-        rec = self.find_by_eng(name)
+        # Поиск по английскому или русскому названию, с обработкой префикса "г." и "г "
+        clean_name = name.strip()
+        if clean_name.lower().startswith("г."):
+            clean_name = clean_name[2:].lstrip()
+        elif clean_name.lower().startswith("г "):
+            clean_name = clean_name[2:].lstrip()
+        rec = self.find_by_eng(clean_name)
         if rec:
             return rec
-        return self.find_by_rus(name)
+        return self.find_by_rus(clean_name)
 
     def all_cities(self) -> List[CityRecord]:
         return list(self.cities.values())

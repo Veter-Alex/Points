@@ -1,9 +1,26 @@
 import os
+import sys
 import tempfile
 
 import pytest
 
-from src.city_manager import CityManager, CityRecord
+# Универсальный импорт CityManager:
+# 1. Сначала пробуем импортировать как from src.city_manager (если запуск из корня проекта)
+# 2. Если не получилось — добавляем src в sys.path и импортируем как from city_manager
+try:
+    from src.city_manager import CityManager, CityRecord
+except ModuleNotFoundError:
+    sys.path.insert(
+        0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
+    )
+else:
+    # If import from src.city_manager succeeded, skip the fallback
+    pass
+try:
+    CityManager
+    CityRecord
+except NameError:
+    pass
 
 CITY_TXT_CONTENT = """
 London=г.Лондон_51,505064_-0,126634_Англия__на территории Англии
