@@ -47,8 +47,6 @@ htmlcov/
 *.swp
 
 # Custom
-settings.txt
 settings/
-data/
 EXAMPLE/
 INPUT/
