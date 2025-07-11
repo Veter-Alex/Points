@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg-info/
+.eggs/
+*.egg
+*.manifest
+*.spec
+
+# VS Code
+.vscode/
+
+# Environments
+.env
+.venv/
+venv/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test & coverage
+htmlcov/
+.tox/
+.coverage
+.cache
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+*.sqlite3
+*.db
+*.csv
+*.tsv
+*.bak
+*.tmp
+*.swp
+
+# Custom
+settings.txt
+settings/
+data/
+EXAMPLE/
+INPUT/
