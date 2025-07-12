@@ -148,7 +148,7 @@ class PointsApp:
         )
         search_label.grid(row=0, column=0, sticky="w", padx=2, pady=(5, 0))
 
-        self.city_search_entry = ctk.CTkEntry(city_frame, width=300)
+        self.city_search_entry = ctk.CTkEntry(city_frame, width=200)
         self.city_search_entry.grid(row=1, column=0, sticky="w", padx=2, pady=0)
 
         def paste_event(event=None):
@@ -181,13 +181,18 @@ class PointsApp:
             ("Описание:", "description"),
             ("Регион:", "region"),
         ]
+
+        # Spacer between search and result fields
+        spacer = ctk.CTkLabel(city_frame, text="")
+        spacer.grid(row=2, column=0, columnspan=2, pady=(10, 0))
+
         self.city_result_entries = {}
         for i, (label_text, key) in enumerate(city_labels):
             print(f"Создаю label и entry для {key}")
             label = ctk.CTkLabel(city_frame, text=label_text, anchor="w")
-            label.grid(row=2 + i, column=0, sticky="w", padx=2, pady=(2, 0))
+            label.grid(row=3 + i, column=0, sticky="w", padx=2, pady=(2, 0))
             entry = ctk.CTkEntry(city_frame, width=400)
-            entry.grid(row=2 + i, column=1, sticky="w", padx=2, pady=(2, 0))
+            entry.grid(row=3 + i, column=1, sticky="w", padx=2, pady=(2, 0))
             self.city_result_entries[key] = entry
 
         # Кнопка для обновления информации о городе
@@ -195,10 +200,13 @@ class PointsApp:
         update_btn = ctk.CTkButton(
             city_frame, text="Обновить", width=120, command=self.city_update_action
         )
-        update_btn.grid(row=2 + len(city_labels), column=0, columnspan=2, pady=(10, 0))
 
-        city_frame.grid_rowconfigure(2 + len(city_labels) + 1, weight=1)
-        city_frame.grid_columnconfigure(0, weight=1)
+        update_btn.grid(row=3 + len(city_labels), column=0, columnspan=2, pady=(10, 0))
+
+
+        city_frame.grid_rowconfigure(3 + len(city_labels) + 1, weight=1)
+        city_frame.grid_columnconfigure(0, weight=0)
+        city_frame.grid_columnconfigure(1, weight=1)
 
         win.lift()
         win.update()
