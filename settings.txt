@@ -8,8 +8,8 @@
 
 # === Пути к данным ===
 # rootFolder — директория для поиска файлов для парсинга (xml, json и т.д.)
-rootFolder=E:/Programming/Projects/Python/Points/INPUT
+rootFolder=INPUT
 # mainDataCSV — файл (база данных) для хранения всех ранее отмеченных точек (CSV, UTF-8)
-mainDataCSV=E:/Programming/Projects/Python/Points/data/AllPoint.csv
+mainDataCSV=data/AllPoint.csv
 # cityDataFile — файл для хранения данных о городах (txt, UTF-8)
-cityDataFile=E:/Programming/Projects/Python/Points/data/city.txt
+cityDataFile=data/city.txt

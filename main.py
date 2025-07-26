@@ -225,34 +225,39 @@ class PointsApp:
 
         # Фильтры поиска: сдвинуты к левому краю, друг за другом, затем кнопка поиска
         filter_label = ctk.CTkLabel(
-            points_frame, text="Фильтр (город, дата, широта, долгота):", anchor="w"
+            points_frame, text="Поиск (город, дата, широта, долгота):", anchor="w"
         )
         filter_label.grid(
             row=0, column=0, columnspan=5, sticky="w", padx=2, pady=(5, 0)
         )
         # --- edit-поля поиска: одинаковая ширина и равные отступы ---
         filter_entry_width = 120
-        filter_padx = 8
+        filter_padx = 2
+        # Одинаковый отступ слева и справа для всех полей
         self.filter_city = ctk.CTkEntry(
             points_frame, width=filter_entry_width, placeholder_text="Город"
         )
         self.filter_city.grid(
-            row=1, column=0, padx=(2, filter_padx), pady=2, sticky="w"
+            row=1, column=0, padx=(filter_padx, filter_padx), pady=2, sticky="e"
         )
         self.filter_date = ctk.CTkEntry(
             points_frame, width=filter_entry_width, placeholder_text="Дата"
         )
         self.filter_date.grid(
-            row=1, column=1, padx=(0, filter_padx), pady=2, sticky="w"
+            row=1, column=1, padx=(filter_padx, filter_padx), pady=2, sticky="e"
         )
         self.filter_lat = ctk.CTkEntry(
             points_frame, width=filter_entry_width, placeholder_text="Широта"
         )
-        self.filter_lat.grid(row=1, column=2, padx=(0, filter_padx), pady=2, sticky="w")
+        self.filter_lat.grid(
+            row=1, column=2, padx=(filter_padx, filter_padx), pady=2, sticky="e"
+        )
         self.filter_lon = ctk.CTkEntry(
             points_frame, width=filter_entry_width, placeholder_text="Долгота"
         )
-        self.filter_lon.grid(row=1, column=3, padx=(0, filter_padx), pady=2, sticky="w")
+        self.filter_lon.grid(
+            row=1, column=3, padx=(filter_padx, filter_padx), pady=2, sticky="w"
+        )
 
         # --- функция поиска и кнопка поиска ---
         def update_points_fields():
@@ -307,15 +312,6 @@ class PointsApp:
         ]
         self.point_result_entries = {}
 
-        for i, (label_text, key) in enumerate(edit_labels):
-            label = ctk.CTkLabel(points_frame, text=label_text, anchor="w")
-            label.grid(row=3 + i, column=0, sticky="w", padx=2, pady=(2, 0))
-            entry = ctk.CTkEntry(points_frame, width=600)
-            entry.grid(
-                row=3 + i, column=1, columnspan=4, sticky="w", padx=2, pady=(2, 0)
-            )
-            self.point_result_entries[key] = entry
-
         # edit-поля для первого совпадения (начиная с row=3), все одинаковой ширины
         for i, (label_text, key) in enumerate(edit_labels):
             label = ctk.CTkLabel(points_frame, text=label_text, anchor="w")
@@ -325,8 +321,6 @@ class PointsApp:
                 row=3 + i, column=1, columnspan=4, sticky="w", padx=2, pady=(2, 0)
             )
             self.point_result_entries[key] = entry
-
-        # (удалено дублирующее создание кнопки поиска)
 
         # edit-поля должны быть пустыми при открытии вкладки
         for entry in self.point_result_entries.values():
