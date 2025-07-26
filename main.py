@@ -1,6 +1,7 @@
 from src.logger import logger
 from models.settings import Settings
 from models.city import CityData
+from models.points import PointsData
 # Загрузка настроек приложения
 settings = Settings()
 
