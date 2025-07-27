@@ -1,37 +1,61 @@
 import os
 import tempfile
-import shutil
+
+import pytest
+
 from models.settings import Settings
 
-def test_settings_defaults():
+
+def test_create_default_file_and_load():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = os.path.join(tmpdir, "settings.txt")
+        # Создание и автозагрузка
+        s = Settings(config_path=config_path)
+        assert os.path.exists(config_path)
+        assert s.rootFolder == "INPUT"
+        assert s.mainDataCSV == "data/AllPoint.csv"
+        assert s.cityDataFile == "data/city.txt"
+
+
+def test_save_and_reload():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = os.path.join(tmpdir, "settings.txt")
+        s = Settings(config_path=config_path)
+        s.rootFolder = "DATA"
+        s.mainDataCSV = "main.csv"
+        s.cityDataFile = "cities.txt"
+        # Проверяем автосохранение
+        s2 = Settings(config_path=config_path)
+        assert s2.rootFolder == "DATA"
+        assert s2.mainDataCSV == "main.csv"
+        assert s2.cityDataFile == "cities.txt"
+
+
+def test_to_dict_and_from_dict():
     s = Settings()
-    assert s.rootFolder == "INPUT"
-    assert s.mainDataCSV == "data/AllPoint.csv"
-    assert s.cityDataFile == "data/city.txt"
-
-def test_settings_from_dict():
-    d = {"rootFolder": "DATA", "mainDataCSV": "points.csv", "cityDataFile": "cities.txt"}
-    s = Settings.from_dict(d)
-    assert s.rootFolder == "DATA"
-    assert s.mainDataCSV == "points.csv"
-    assert s.cityDataFile == "cities.txt"
-
-def test_settings_to_dict():
-    s = Settings(rootFolder="A", mainDataCSV="B", cityDataFile="C")
     d = s.to_dict()
-    assert d["rootFolder"] == "A"
-    assert d["mainDataCSV"] == "B"
-    assert d["cityDataFile"] == "C"
+    s2 = Settings.from_dict(d)
+    assert s2.rootFolder == s.rootFolder
+    assert s2.mainDataCSV == s.mainDataCSV
+    assert s2.cityDataFile == s.cityDataFile
 
-def test_settings_save_and_load():
-    s = Settings(rootFolder="FOLDER", mainDataCSV="file.csv", cityDataFile="city.txt")
-    tmpdir = tempfile.mkdtemp()
-    try:
-        path = os.path.join(tmpdir, "settings.txt")
-        s.save_to_file(path)
-        loaded = Settings.load_from_file(path)
-        assert loaded.rootFolder == "FOLDER"
-        assert loaded.mainDataCSV == "file.csv"
-        assert loaded.cityDataFile == "city.txt"
-    finally:
-        shutil.rmtree(tmpdir)
+
+def test_invalid_config_format():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = os.path.join(tmpdir, "settings.txt")
+        with open(config_path, "w", encoding="utf-8") as f:
+            f.write("broken_line_without_equal\n")
+        with pytest.raises(ValueError):
+            Settings(config_path=config_path)
+
+
+def test_save_to_file_and_load():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = os.path.join(tmpdir, "settings.txt")
+        s = Settings(config_path=config_path)
+        s.rootFolder = "SAVED"
+        s.save_to_file(config_path)
+        s2 = Settings(config_path=config_path)
+        assert s2.rootFolder == "SAVED"
+        s2 = Settings(config_path=config_path)
+        assert s2.rootFolder == "SAVED"

@@ -27,6 +27,8 @@ Thumbs.db
 # Logs
 *.log
 
+logs/
+
 # Test & coverage
 htmlcov/
 .tox/
@@ -34,19 +36,26 @@ htmlcov/
 .cache
 .nox/
 
+# Test outputs
+test_output/
+
 # Jupyter
 .ipynb_checkpoints/
 
 # Data
 *.sqlite3
 *.db
-*.csv
 *.tsv
 *.bak
 *.tmp
 *.swp
 
+*.csv
+*.xlsx
+*.xls
+*.json
+*.xml
+
 # Custom
-settings/
 EXAMPLE/
 INPUT/
