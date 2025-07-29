@@ -88,32 +88,43 @@ class CityData:
     def parse_line(line: str) -> Optional[CityRecord]:
         """
         Парсинг строки с обработкой ошибок и логированием.
+        Формат: <Оригинальное_название>=<Русское_название>_<широта>_<долгота>_<страна>_<описание>_<регион>
         Возвращает CityRecord или выбрасывает ValueError при ошибке.
         """
         try:
             name_original, rest = line.split("=", 1)
             parts = rest.split("_")
-            # Базовые обязательные поля
+
+            # Проверяем минимальное количество частей (название, широта, долгота, страна)
             if len(parts) < 4:
                 raise ValueError(f"Недостаточно частей в строке: {line}")
+
+            # Обязательные поля
             name_ru = parts[0]
-            latitude = float(parts[1].replace(",", "."))
-            longitude = float(parts[2].replace(",", "."))
+            latitude = float(
+                parts[1].replace(",", ".")
+            )  # Поддержка старого формата с запятыми
+            longitude = float(
+                parts[2].replace(",", ".")
+            )  # Поддержка старого формата с запятыми
+            country = parts[3] if parts[3] else None
+
             # Опциональные поля
-            country = parts[3] if len(parts) > 3 else None
-            description = parts[4] if len(parts) > 4 else None
-            region = parts[5] if len(parts) > 5 else None
-            # Проверка на пустые значения
-            if not all([name_original, name_ru, latitude, longitude]):
+            description = parts[4] if len(parts) > 4 and parts[4] else None
+            region = parts[5] if len(parts) > 5 and parts[5] else None
+
+            # Проверка на пустые обязательные значения
+            if not all([name_original.strip(), name_ru.strip()]):
                 raise ValueError("Обязательные поля пусты")
+
             return CityRecord(
-                name_original=name_original,
-                name_ru=name_ru,
+                name_original=name_original.strip(),
+                name_ru=name_ru.strip(),
                 latitude=latitude,
                 longitude=longitude,
-                country=country,
-                description=description,
-                region=region,
+                country=country.strip() if country else None,
+                description=description.strip() if description else None,
+                region=region.strip() if region else None,
             )
         except Exception as e:
             logger.error(f"Ошибка парсинга строки: '{line}' Причина: {e}")
@@ -150,22 +161,52 @@ class CityData:
     def save_data_to_file(self):
         """
         Полная перезапись файла из актуальных данных с бэкапом.
+        Сохраняет в формате: комментарии + отсортированные по алфавиту записи.
         """
-        countries: Dict[str, List[CityRecord]] = {}
-        for rec in self.records:
-            if rec.country not in countries:
-                countries[rec.country] = []
-            countries[rec.country].append(rec)
-        sorted_countries = sorted(countries.keys())
-        lines = []
-        for country in sorted_countries:
-            lines.append(f"' ================== {country.upper()} ==================")
-            for city in sorted(countries[country], key=lambda c: c.name_original):
-                lines.append(self._city_to_line(city))
-            lines.append("")
+        # Создаем бэкап перед сохранением
         self.create_backup()
+
+        # Комментарии в начале файла
+        header_comments = [
+            "' =====================================================================================",
+            "' Географическая база данных для анализа погодных данных (city.txt)",
+            "'",
+            "' Формат файла:",
+            "' <Оригинальное_название>=<Русское_название>_<широта>_<долгота>_<страна>_<описание>_<регион>",
+            "",
+            "' - Пример строки:",
+            "'   Babayevka=н.п.Бабинка_53.243_33.119_Россия_83 км зап. г.Брянск_на территории Брянской области",
+            "'   Krolevets=н.п.Кролевец_51.547029_33.379761_Украина_122 км сев.-зап. г.Сумы_на территории Украины",
+            "'   Belgorod=г.Белгород_50.595414_36.587277_Россия__на территории Белгородской области",
+            "'   London=г.Лондон_51.505064_-0.126634_Англия__на территории Англии",
+            "'",
+            "' - Все строки-комментарии начинаются с одинарной кавычки (') и игнорируются при обработке.",
+            "' - Строки с описанием отсортированы по алфавиту.",
+            "' - Должен быть знак равно после оригинального названия города (без пробелов)",
+            "' - Широта и долгота указываются через точку (например: 50.450441).",
+            "' - Страна указывается всегда (например: Россия, Украина, Китай, ...).",
+            "' - Описание и регион могут быть пустыми.",
+            "'",
+            "",
+        ]
+
+        # Сортируем записи по оригинальному названию
+        sorted_records = sorted(self.records, key=lambda c: c.name_original.lower())
+
+        # Формируем строки данных
+        data_lines = [self._city_to_line(city) for city in sorted_records]
+
+        # Записываем файл
         with open(self.filepath, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+            # Записываем комментарии
+            for comment in header_comments:
+                f.write(comment + "\n")
+
+            # Записываем данные
+            for line in data_lines:
+                f.write(line + "\n")
+
+        logger.info(f"Сохранено {len(sorted_records)} записей в {self.filepath}")
 
     def create_backup(self):
         """
@@ -189,6 +230,7 @@ class CityData:
     def _city_to_line(city: CityRecord) -> str:
         """
         Безопасное формирование строки для записи города в файл.
+        Формат: <Оригинальное_название>=<Русское_название>_<широта>_<долгота>_<страна>_<описание>_<регион>
         """
 
         def safe_value(value: Optional[str]) -> str:
@@ -196,12 +238,25 @@ class CityData:
                 return ""
             return value.replace("_", "-").replace("=", "-")
 
+        # Координаты используют точку как разделитель
+        latitude_str = str(city.latitude)
+        longitude_str = str(city.longitude)
+
+        # Страна всегда должна быть указана
+        country = safe_value(city.country) if city.country else "Неизвестно"
+
+        # Описание может быть пустым (двойное подчеркивание)
+        description = safe_value(city.description) if city.description else ""
+
+        # Регион всегда должен быть указан
+        region = safe_value(city.region) if city.region else f"на территории {country}"
+
         return (
             f"{safe_value(city.name_original)}="
             f"{safe_value(city.name_ru)}_"
-            f"{str(city.latitude).replace('.', ',')}_"
-            f"{str(city.longitude).replace('.', ',')}_"
-            f"{safe_value(city.country)}_"
-            f"{safe_value(city.description)}_"
-            f"{safe_value(city.region)}"
+            f"{latitude_str}_"
+            f"{longitude_str}_"
+            f"{country}_"
+            f"{description}_"
+            f"{region}"
         )

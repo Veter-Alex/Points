@@ -13,6 +13,7 @@ from src.logger import logger
 
 _WORLD_GDF = None  # Кэш для GeoDataFrame
 
+
 def find_folders_missing_data_csv(rootFolder: str) -> List[str]:
     """
     Ищет во всех поддиректориях rootFolder папки, в которых есть хотя бы один xml или json файл,
@@ -38,8 +39,15 @@ def parse_xml(xml_path: str) -> Optional[PointRecord]:
     """
     logger.info(f"Начинаем обработку XML файла: {xml_path}")
     try:
+        # получаем текст XML
+        import json
+
         with open(xml_path, encoding="utf-8") as f_xml:
             xml_text = f_xml.read()
+            # сериализация для безопасного хранения спецсимволов
+            # xml_text = json.dumps(xml_text, ensure_ascii=False)
+
+        # парсим XML
         tree = ET.ElementTree(ET.fromstring(xml_text))
         root = tree.getroot()
         # --- Формат 1: <root><point>...
@@ -191,7 +199,9 @@ def find_point_by_lat_lon(
             return point
     return None
 
+
 from typing import Tuple
+
 
 def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
     """
@@ -201,27 +211,23 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
     """
     global _WORLD_GDF
     if _WORLD_GDF is None:
-        geojson_path = os.path.join(
-            os.path.dirname(__file__), "countries.geojson"
-        )
+        geojson_path = os.path.join(os.path.dirname(__file__), "countries.geojson")
         _WORLD_GDF = gpd.read_file(geojson_path)
 
     point = Point(lon, lat)
     matches = _WORLD_GDF[_WORLD_GDF["geometry"].contains(point)]
     country_eng = ""
     country_rus = ""
+
     if not matches.empty:
-        # Попробовать разные возможные поля для имени страны
-        possible_fields = ["ADMIN", "name", "NAME", "COUNTRY", "country", "Country"]
-        for field in possible_fields:
-            if field in matches.columns:
-                val = matches.iloc[0][field]
-                if isinstance(val, str):
-                    country_eng = val
-                    break
-        if not country_eng:
-            # Если ничего не найдено, вернуть строковое представление первой колонки
-            country_eng = str(matches.iloc[0][matches.columns[0]])
+        # Используем колонку 'name' из countries.geojson
+        country_eng = matches.iloc[0]["name"]
+    else:
+        # Если точное попадание не найдено, ищем в небольшом радиусе (для точек на границах)
+        buffer_point = point.buffer(0.02)  # буфер 0.02 градуса (~2.2 км)
+        buffer_matches = _WORLD_GDF[_WORLD_GDF["geometry"].intersects(buffer_point)]
+        if not buffer_matches.empty:
+            country_eng = buffer_matches.iloc[0]["name"]
 
     # Словарь переводов: Английское название -> Русское в предложном падеже
     country_translate = {
@@ -233,6 +239,7 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
         "Belarus": "Белоруссии",
         "Poland": "Польши",
         "Kazakhstan": "Казахстана",
+        "United States of America": "США",
         "United States": "США",
         "USA": "США",
         "Turkey": "Турции",
@@ -275,6 +282,64 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
         "Vatican City": "Ватикана",
         "Switzerland": "Швейцарии",
         "Luxembourg": "Люксембурга",
+        "Singapore": "Сингапура",
+        "Japan": "Японии",
+        "South Korea": "Южной Кореи",
+        "North Korea": "Северной Кореи",
+        "Thailand": "Таиланда",
+        "Vietnam": "Вьетнама",
+        "Malaysia": "Малайзии",
+        "Indonesia": "Индонезии",
+        "Philippines": "Филиппин",
+        "India": "Индии",
+        "Pakistan": "Пакистана",
+        "Bangladesh": "Бангладеш",
+        "Sri Lanka": "Шри-Ланки",
+        "Australia": "Австралии",
+        "New Zealand": "Новой Зеландии",
+        "Canada": "Канады",
+        "Mexico": "Мексики",
+        "Brazil": "Бразилии",
+        "Argentina": "Аргентины",
+        "Chile": "Чили",
+        "Peru": "Перу",
+        "Colombia": "Колумбии",
+        "Venezuela": "Венесуэлы",
+        "Ecuador": "Эквадора",
+        "Bolivia": "Боливии",
+        "Paraguay": "Парагвая",
+        "Uruguay": "Уругвая",
+        "Egypt": "Египта",
+        "South Africa": "Южной Африки",
+        "Morocco": "Марокко",
+        "Algeria": "Алжира",
+        "Tunisia": "Туниса",
+        "Libya": "Ливии",
+        "Sudan": "Судана",
+        "Ethiopia": "Эфиопии",
+        "Kenya": "Кении",
+        "Tanzania": "Танзании",
+        "Nigeria": "Нигерии",
+        "Ghana": "Ганы",
+        "Iran": "Ирана",
+        "Iraq": "Ирака",
+        "Syria": "Сирии",
+        "Lebanon": "Ливана",
+        "Jordan": "Иордании",
+        "Israel": "Израиля",
+        "Saudi Arabia": "Саудовской Аравии",
+        "UAE": "ОАЭ",
+        "Qatar": "Катара",
+        "Kuwait": "Кувейта",
+        "Bahrain": "Бахрейна",
+        "Oman": "Омана",
+        "Yemen": "Йемена",
+        "Afghanistan": "Афганистана",
+        "Nepal": "Непала",
+        "Bhutan": "Бутана",
+        "Myanmar": "Мьянмы",
+        "Cambodia": "Камбоджи",
+        "Laos": "Лаоса",
         # ... можно добавить другие страны по необходимости ...
     }
     country_rus = country_translate.get(country_eng, country_eng)
@@ -286,13 +351,15 @@ def get_sk42_coordinates(lat: float, lon: float):
     import math
 
     # Проверяем, что координаты в допустимом диапазоне для СК-42
-    if lon < 21 or lon > 60:
+    # СК-42 покрывает территорию России от 18° до 165° восточной долготы
+    if lon < 18 or lon > 165:
         logger.warning(f"Координаты вне зоны действия СК-42: {lat}, {lon}")
         x_sk42, y_sk42 = None, None
     else:
         try:
             # Преобразование координат WGS84 -> СК-42
             from src.coordinate_transformer import CoordinateTransformer
+
             transformer = CoordinateTransformer(system="SK42_GAUSS_KRUGER", zone="AUTO")
             x_sk42, y_sk42 = transformer.transform(lat, lon, to_wgs=False)
             # Проверка на бесконечность и NaN
@@ -308,29 +375,119 @@ def get_sk42_coordinates(lat: float, lon: float):
     # Возвращаем преобразованные координаты
     return x_sk42, y_sk42
 
+
 def find_city_by_name(records, city_name):
     """
     Найти город в records по имени.
     Возвращает CityRecord или None.
     """
+    if not city_name:
+        return None
     for record in records:
+        name_ru = record.name_ru if record.name_ru else ""
+        name_original = record.name_original if record.name_original else ""
         if (
-            record.name_ru.lower() == city_name.lower()
-            or record.name_original.lower() == city_name.lower()
+            name_ru.lower() == city_name.lower()
+            or name_original.lower() == city_name.lower()
         ):
             return record
     return None
 
-def get_area_desc(found_city: CityRecord, result_parse_xml: PointRecord, x_sk42: int, y_sk42: int) -> str:
+
+def get_area_desc(
+    found_city: CityRecord, result_parse_xml: PointRecord, x_sk42: int, y_sk42: int
+) -> str:
     """
-    !TODO СДЕЛАТЬ
-    Сформироваьть описание района (area_desc) для точки из city_data:
+    Сформировать описание района (area_desc) для точки из city_data:
     район 6 км северо-западнее н.п.Суджа (87 км юго-зап. г.Курск, координаты: X=5681162 Y=6655966);
+    Sudzha=н.п.Суджа_51.190581_35.269206_Россия_87 км юго-зап. г.Курск_на территории Курской области
     Использует данные из found_city и result_parse_xml для создания описания.
     """
-    return ""
+    import math
 
-def new_point_from_city_data(found_city: CityRecord, result_parse_xml: PointRecord) -> PointRecord:
+    def haversine(lat1, lon1, lat2, lon2):
+        # расстояние между двумя точками на сфере (км)
+        R = 6371.0
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = (
+            math.sin(dphi / 2) ** 2
+            + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        )
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
+
+    def get_direction(lat1, lon1, lat2, lon2):
+        # возвращает направление (например, "северо-западнее")
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        angle = math.degrees(math.atan2(dlon, dlat))
+        dirs = [
+            (22.5, "сев."),
+            (67.5, "сев.-вост."),
+            (112.5, "вост."),
+            (157.5, "юго-вост."),
+            (202.5, "южнее"),
+            (247.5, "юго-зап."),
+            (292.5, "зап."),
+            (337.5, "сев.-зап."),
+            (360.0, "сев."),
+        ]
+        angle = (angle + 360) % 360
+        for bound, name in dirs:
+            if angle < bound:
+                return name
+        return "севернее"
+
+    # Получить расстояние от точки из result_parse_xml до найденного города
+    distance = haversine(
+        found_city.latitude,
+        found_city.longitude,
+        result_parse_xml.latitude,
+        result_parse_xml.longitude,
+    )
+    # Получить направление от города до точки
+    direction = get_direction(
+        found_city.latitude,
+        found_city.longitude,
+        result_parse_xml.latitude,
+        result_parse_xml.longitude,
+    )
+
+    # Если расстояние меньше 2 км
+    if distance <= 2:
+        # Если найденный город не имеет описание района
+        if found_city.description is None:
+            # вернуть описание в следующем формате
+            # район г.Сумы (координаты: X=5645005 Y=6626587);
+            return f"район {found_city.name_ru} (координаты: X={x_sk42} Y={y_sk42})"
+        # Если найденный город имеет описание района
+        else:
+            # вернуть описание в следующем формате
+            # район г.Сумы (87 км юго-зап. г.Курск, координаты: X=5673347 Y=6663897);
+            return f"район {found_city.name_ru} ({found_city.description}, координаты: X={x_sk42} Y={y_sk42})"
+
+    # если расстояние больше 2 км
+    elif distance > 2:
+        # Если найденный город не имеет описание района
+        if found_city.description is None:
+            # вернуть описание в следующем формате
+            # район 5,8 км юго-западнее н.п.Суджа (координаты: X=5673347 Y=6663897);
+            return f"район {distance:.1f} км {direction} {found_city.name_ru} (координаты: X={x_sk42} Y={y_sk42})"
+        # Если найденный город имеет описание района
+        else:
+            # вернуть описание в следующем формате
+            # район 5,8 км юго-западнее н.п.Суджа (87 км юго-зап. г.Курск, координаты: X=5673347 Y=6663897);
+            return f"район {distance:.1f} км {direction} {found_city.name_ru} ({found_city.description}, координаты: X={x_sk42} Y={y_sk42})"
+    # На случай, если ни одно условие не сработало, возвращаем пустую строку
+    return "error in get_area_desc"
+
+
+def new_point_from_city_data(
+    found_city: CityRecord, result_parse_xml: PointRecord
+) -> PointRecord:
     """
     Создать новый PointRecord из результата парсинга XML.
     Использует данные из result_parse_xml и city_data для создания нового объекта.
@@ -357,7 +514,10 @@ def new_point_from_city_data(found_city: CityRecord, result_parse_xml: PointReco
         original_text=result_parse_xml.original_text,
     )
 
-def new_point_from_points_data(found_point: PointRecord, result_parse_xml: PointRecord) -> PointRecord:
+
+def new_point_from_points_data(
+    found_point: PointRecord, result_parse_xml: PointRecord
+) -> PointRecord:
     """
     Создать новый PointRecord из найденной точки и результата парсинга XML.
     Использует данные из found_point и result_parse_xml для создания нового объекта.
@@ -376,6 +536,7 @@ def new_point_from_points_data(found_point: PointRecord, result_parse_xml: Point
         original_text=result_parse_xml.original_text,
     )
 
+
 def find_and_parse_files(
     input_folder: str, city_data: CityData, points_data: PointsData
 ) -> None:
@@ -390,6 +551,7 @@ def find_and_parse_files(
         print(f"Папка без data.csv: {folder}")
         # Пройтись по всем файлам в папке
         for file in os.listdir(folder):
+
             # если файл XML
             if file.endswith(".xml"):
                 # Парсинг XML файла
@@ -404,31 +566,28 @@ def find_and_parse_files(
                     )
                     # Если точка найдена
                     if found_point:
-                        # Сформировать новую точку (PointRecord):
-                        #  используем данные из result_parse_xml
-                        #  (date/time и original_text),
-                        #  остальные поля из найденной, ранее отмеченной точки
-                        new_point = new_point_from_points_data(found_point, result_parse_xml)
-
+                        new_point = new_point_from_points_data(
+                            found_point, result_parse_xml
+                        )
+                        points_data.add_point(new_point)
+                        logger.info(f"Добавлена точка: {new_point}")
                     else:
-                        # ищем город (result_parse_xml.city) в city_data
                         found_city = find_city_by_name(
                             city_data.records, result_parse_xml.city
                         )
-                        # Если город найден
                         if found_city:
-                            # Сформировать новую точку (PointRecord):
-                            #  используем данные из result_parse_xml
-                            #  и данные из найденного города
-                            #  (широта/долгота, название города и т.д.)
-                            new_point = new_point_from_city_data(found_city, result_parse_xml)
-
+                            new_point = new_point_from_city_data(
+                                found_city, result_parse_xml
+                            )
+                            points_data.add_point(new_point)
+                            logger.info(f"Добавлена точка: {new_point}")
                         else:
-                            # Если не найдена запись широта/долгота в points_data,
-                            # и не найден населенный пункт в city_data, то
-                            # создать запись типа CityRecord и добавить в отдельный список
                             new_city = CityRecord(
-                                name_original=result_parse_xml.city if result_parse_xml.city is not None else "",
+                                name_original=(
+                                    result_parse_xml.city
+                                    if result_parse_xml.city is not None
+                                    else ""
+                                ),
                                 name_ru="русское название_города ",
                                 latitude=result_parse_xml.latitude,
                                 longitude=result_parse_xml.longitude,
@@ -437,16 +596,13 @@ def find_and_parse_files(
                                 region=None,  # Здесь можно добавить регион, если нужно
                             )
                             wrong_city_data.append(new_city)
-
+                            logger.info(f"Город не найден: {new_city}")
 
             # если файл JSON
             elif file.endswith(".json"):
                 # parse_json_file(os.path.join(folder, file))
                 pass
 
-            points_data.add_point(new_point)
-            logger.info(f"Добавлена точка: {new_point}")
-        
         # После обработки всех файлов в папке
         # сохранить city_data и points_data в файлы
         points_data.save()
@@ -454,6 +610,7 @@ def find_and_parse_files(
     # После обработки всех папок
 
     # Обработать список wrong_city_data (не найденные города)
-    logger.info("Не найденные города:")
-    for city in wrong_city_data:
-        logger.info(f" - {city.name_original} ({city.latitude}, {city.longitude})")
+    if wrong_city_data:
+        logger.info("Не найденные города:")
+        for city in wrong_city_data:
+            logger.info(f" - {city.name_original} ({city.latitude}, {city.longitude})")
