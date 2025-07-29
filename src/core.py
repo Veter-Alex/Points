@@ -1,3 +1,4 @@
+import csv
 import os
 import shutil
 import urllib.request
@@ -510,7 +511,7 @@ def new_point_from_city_data(
         country=country_eng,
         city=result_parse_xml.city,
         area_desc=get_area_desc(found_city, result_parse_xml, x_sk42, y_sk42),
-        region_desc=f"на территории {country_rus}",
+        region_desc=found_city.region if found_city else None,
         original_text=result_parse_xml.original_text,
     )
 
@@ -549,6 +550,10 @@ def find_and_parse_files(
     # Запустить поиск папок с отсутствующим data.csv
     for folder in find_folders_missing_data_csv(input_folder):
         print(f"Папка без data.csv: {folder}")
+
+        # создать список для точек в папке
+        points_folder: list[PointRecord] = []
+
         # Пройтись по всем файлам в папке
         for file in os.listdir(folder):
 
@@ -570,6 +575,7 @@ def find_and_parse_files(
                             found_point, result_parse_xml
                         )
                         points_data.add_point(new_point)
+                        points_folder.append(new_point)
                         logger.info(f"Добавлена точка: {new_point}")
                     else:
                         found_city = find_city_by_name(
@@ -580,15 +586,12 @@ def find_and_parse_files(
                                 found_city, result_parse_xml
                             )
                             points_data.add_point(new_point)
+                            points_folder.append(new_point)
                             logger.info(f"Добавлена точка: {new_point}")
-                        else:
+                        elif result_parse_xml.city is not None:
                             new_city = CityRecord(
-                                name_original=(
-                                    result_parse_xml.city
-                                    if result_parse_xml.city is not None
-                                    else ""
-                                ),
-                                name_ru="русское название_города ",
+                                name_original=result_parse_xml.city,
+                                name_ru="русское название_города",
                                 latitude=result_parse_xml.latitude,
                                 longitude=result_parse_xml.longitude,
                                 country=result_parse_xml.country,
@@ -604,10 +607,19 @@ def find_and_parse_files(
                 pass
 
         # После обработки всех файлов в папке
-        # сохранить city_data и points_data в файлы
-        points_data.save()
+        if points_folder:
+            # Сохранить точки в отдельный файл data.xlsx
+            data_xlsx_path = os.path.join(folder, "data.xlsx")
+            points_df = gpd.GeoDataFrame(
+                points_folder,
+                geometry=[Point(p.longitude, p.latitude) for p in points_folder],
+            )
+            points_df.to_excel(data_xlsx_path, index=False)
+            logger.info(f"Точки сохранены в {data_xlsx_path}")
 
     # После обработки всех папок
+    # сохранить points_data в файл
+    points_data.save()
 
     # Обработать список wrong_city_data (не найденные города)
     if wrong_city_data:
