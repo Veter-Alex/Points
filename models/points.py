@@ -25,6 +25,7 @@ class PointRecord:
     area_desc: Optional[str]
     region_desc: Optional[str]
     original_text: str
+    file_path: Optional[str] = None
 
 
 class PointsData:
@@ -45,6 +46,7 @@ class PointsData:
         "Description of the area",
         "Description of the region",
         "Original text",
+        "File_Path",
     ]
 
     def __init__(self, filepath: str):
@@ -138,6 +140,7 @@ class PointsData:
                             if "Description of the region" in row
                             else None
                         )
+                        file_path = row.get("File_Path", None)
                         point = PointRecord(
                             date=row.get("Data", ""),
                             time=row.get("Time", ""),
@@ -150,6 +153,7 @@ class PointsData:
                             area_desc=area_desc,
                             region_desc=region_desc,
                             original_text=row.get("Original text", ""),
+                            file_path=file_path,
                         )
                         self.points.append(point)
                         self.index[(point.latitude, point.longitude)] = point
@@ -216,6 +220,7 @@ class PointsData:
                         "Description of the area": p.area_desc or "",
                         "Description of the region": p.region_desc or "",
                         "Original text": p.original_text,
+                        "File_Path": p.file_path or "",
                     }
                 )
 
@@ -235,5 +240,4 @@ class PointsData:
             [f for f in os.listdir(backup_dir) if f.endswith(".bak")], reverse=True
         )
         for old_backup in backups[10:]:
-            os.remove(os.path.join(backup_dir, old_backup))
             os.remove(os.path.join(backup_dir, old_backup))
