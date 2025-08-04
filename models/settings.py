@@ -17,12 +17,26 @@ class Settings:
         rootFolder: str = "INPUT",
         mainDataCSV: str = "data/AllPoint.csv",
         cityDataFile: str = "data/city.txt",
+        log_level: str = "INFO",
     ):
         self.config_path = config_path
         self._rootFolder = rootFolder
         self._mainDataCSV = mainDataCSV
         self._cityDataFile = cityDataFile
+        self._log_level = log_level
         self.load()
+
+    @property
+    def log_level(self) -> str:
+        """
+        Уровень логирования (например, INFO, DEBUG, WARNING, ERROR).
+        """
+        return self._log_level
+
+    @log_level.setter
+    def log_level(self, value: str) -> None:
+        self._log_level = value.upper()
+        self.save()
 
     # __post_init__ больше не нужен
 
@@ -99,6 +113,10 @@ class Settings:
             "mainDataCSV=data/AllPoint.csv",
             "# cityDataFile — файл для хранения данных о городах (txt, UTF-8)",
             "cityDataFile=data/city.txt",
+            "",
+            "# === Логирование ===",
+            "# log_level — уровень логирования: DEBUG, INFO, WARNING, ERROR",
+            "log_level=INFO",
         ]
         try:
             with open(filepath, "w", encoding="utf-8") as f:
@@ -140,14 +158,17 @@ class Settings:
             raise
 
         # Обновляем текущий экземпляр (без автосохранения)
-        # Сохраняем как есть (относительный или абсолютный путь)
         self._rootFolder = values.get("rootFolder", self._rootFolder)
         self._mainDataCSV = values.get("mainDataCSV", self._mainDataCSV)
         self._cityDataFile = values.get("cityDataFile", self._cityDataFile)
+        self._log_level = values.get(
+            "log_level", getattr(self, "_log_level", "INFO")
+        ).upper()
 
         logger.info("Входная директория: {}", os.path.abspath(self._rootFolder))
         logger.info("Файл данных о городах: {}", self._cityDataFile)
         logger.info("Файл базы данных точек: {}", self._mainDataCSV)
+        logger.info("Уровень логирования: {}", self._log_level)
 
     def save(self) -> None:
         """
@@ -163,6 +184,7 @@ class Settings:
             "rootFolder": self.rootFolder,
             "mainDataCSV": self.mainDataCSV,
             "cityDataFile": self.cityDataFile,
+            "log_level": self.log_level,
         }
 
     @classmethod
@@ -174,6 +196,7 @@ class Settings:
             rootFolder=d.get("rootFolder", "INPUT"),
             mainDataCSV=d.get("mainDataCSV", "data/AllPoint.csv"),
             cityDataFile=d.get("cityDataFile", "data/city.txt"),
+            log_level=d.get("log_level", "INFO"),
         )
 
     def save_to_file(self, filepath: str) -> None:
@@ -203,6 +226,10 @@ class Settings:
             f"mainDataCSV={self.mainDataCSV}",
             "# cityDataFile — файл для хранения данных о городах (txt, UTF-8)",
             f"cityDataFile={self.cityDataFile}",
+            "",
+            "# === Логирование ===",
+            "# log_level — уровень логирования: DEBUG, INFO, WARNING, ERROR",
+            f"log_level={self.log_level}",
         ]
         try:
             with open(filepath, "w", encoding="utf-8") as f:

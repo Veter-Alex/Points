@@ -96,16 +96,8 @@ class PointsData:
                 reader = csv.DictReader(f)
                 for i, row in enumerate(reader, 1):
                     try:
-                        lat_str = (
-                            (row.get("Lat_WGS84") or "")
-                            .replace('"', "")
-                            .replace(",", ".")
-                        )
-                        lon_str = (
-                            (row.get("Lon_WGS84") or "")
-                            .replace('"', "")
-                            .replace(",", ".")
-                        )
+                        lat_str = (row.get("Lat_WGS84") or "").replace('"', "")
+                        lon_str = (row.get("Lon_WGS84") or "").replace('"', "")
                         x_sk42_raw = row.get("X_SK-42_Gauss_Kruger")
                         y_sk42_raw = row.get("Y_SK-42_Gauss_Kruger")
                         try:
@@ -207,8 +199,8 @@ class PointsData:
                     {
                         "Data": p.date,
                         "Time": p.time,
-                        "Lat_WGS84": f"{p.latitude:.6f}".replace(".", ","),
-                        "Lon_WGS84": f"{p.longitude:.6f}".replace(".", ","),
+                        "Lat_WGS84": f"{p.latitude:.6f}",
+                        "Lon_WGS84": f"{p.longitude:.6f}",
                         "X_SK-42_Gauss_Kruger": (
                             p.x_sk42 if p.x_sk42 is not None else ""
                         ),
