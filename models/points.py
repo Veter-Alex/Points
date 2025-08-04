@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from src.logger import logger
-
 
 @dataclass
 class PointRecord:
@@ -49,11 +47,12 @@ class PointsData:
         "File_Path",
     ]
 
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: str, log_message):
         """
         Инициализация PointsData: загрузка данных и создание файла при необходимости.
         """
         self.filepath = filepath
+        self.log_message = log_message
         self.points: List[PointRecord] = []
         self.index: Dict[Tuple[float, float], PointRecord] = {}
         self.create_file_if_not_exists()
@@ -64,14 +63,22 @@ class PointsData:
         Создать CSV-файл с заголовками, если он отсутствует.
         """
         if not os.path.exists(self.filepath):
-            logger.info(f"Файл {self.filepath} не найден. Создаю новый с заголовками.")
+            self.log_message(
+                f"Файл {self.filepath} не найден. Создаю новый с заголовками.",
+                color="blue",
+                logger_level="info",
+            )
             # Создаём директорию, если нужно
             try:
                 dir_path = os.path.dirname(self.filepath)
                 if dir_path:
                     os.makedirs(dir_path, exist_ok=True)
             except OSError as e:
-                logger.error(f"Ошибка создания директории: {e}")
+                self.log_message(
+                    f"Ошибка создания директории: {e}",
+                    color="red",
+                    logger_level="error",
+                )
                 raise
             # Создаём файл с заголовками
             try:
@@ -79,15 +86,21 @@ class PointsData:
                     writer = csv.DictWriter(f, fieldnames=self.FIELD_NAMES)
                     writer.writeheader()
             except OSError as e:
-                logger.error(f"Ошибка создания файла: {e}")
+                self.log_message(
+                    f"Ошибка создания файла: {e}", color="red", logger_level="error"
+                )
                 raise
-            logger.info(f"Файл создан: {self.filepath}")
+            self.log_message(
+                f"Файл создан: {self.filepath}", color="blue", logger_level="info"
+            )
 
     def load(self):
         """
         Загрузить данные из файла с обработкой ошибок и логированием.
         """
-        logger.info(f"Загрузка данных из {self.filepath}")
+        self.log_message(
+            f"Загрузка данных из {self.filepath}", color="blue", logger_level="info"
+        )
 
         self.points.clear()
         self.index.clear()
@@ -107,8 +120,10 @@ class PointsData:
                                 else None
                             )
                         except Exception as e:
-                            logger.warning(
-                                f"Ошибка преобразования X_SK-42_Gauss_Kruger в строке {i}: {x_sk42_raw} — {e}"
+                            self.log_message(
+                                f"Ошибка преобразования X_SK-42_Gauss_Kruger в строке {i}: {x_sk42_raw} — {e}",
+                                color="yellow",
+                                logger_level="warning",
                             )
                             x_sk42 = None
                         try:
@@ -118,8 +133,10 @@ class PointsData:
                                 else None
                             )
                         except Exception as e:
-                            logger.warning(
-                                f"Ошибка преобразования Y_SK-42_Gauss_Kruger в строке {i}: {y_sk42_raw} — {e}"
+                            self.log_message(
+                                f"Ошибка преобразования Y_SK-42_Gauss_Kruger в строке {i}: {y_sk42_raw} — {e}",
+                                color="yellow",
+                                logger_level="warning",
                             )
                             y_sk42 = None
                         area_desc = (
@@ -150,13 +167,29 @@ class PointsData:
                         self.points.append(point)
                         self.index[(point.latitude, point.longitude)] = point
                     except Exception as e:
-                        logger.error(f"Ошибка в строке {i}: {str(e)}; row={row}")
+                        self.log_message(
+                            f"Ошибка в строке {i}: {str(e)}; row={row}",
+                            color="red",
+                            logger_level="error",
+                        )
         except FileNotFoundError:
-            logger.warning(f"Файл {self.filepath} не найден, создан новый")
+            self.log_message(
+                f"Файл {self.filepath} не найден, создан новый",
+                color="yellow",
+                logger_level="warning",
+            )
             self.create_file_if_not_exists()
         except Exception as e:
-            logger.critical(f"Критическая ошибка загрузки: {str(e)}")
-        logger.info(f"Загружено {len(self.points)} точек из {self.filepath}")
+            self.log_message(
+                f"Критическая ошибка загрузки: {str(e)}",
+                color="red",
+                logger_level="critical",
+            )
+        self.log_message(
+            f"Загружено {len(self.points)} точек из {self.filepath}",
+            color="blue",
+            logger_level="info",
+        )
 
     def find_by_lat_lon(
         self, latitude: float, longitude: float
@@ -178,8 +211,10 @@ class PointsData:
                 and p.date == point.date
                 and p.time == point.time
             ):
-                logger.warning(
-                    f"Дубликат: точка с координатами ({point.latitude}, {point.longitude}) и датой/временем {point.date} {point.time} уже существует!"
+                self.log_message(
+                    f"Дубликат: точка с координатами ({point.latitude}, {point.longitude}) и датой/временем {point.date} {point.time} уже существует!",
+                    color="yellow",
+                    logger_level="warning",
                 )
                 return False
         self.points.append(point)

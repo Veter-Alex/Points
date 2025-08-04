@@ -4,16 +4,17 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pyproj import CRS, Transformer
 
-from src.logger import logger
-
 
 class CoordinateTransformer:
     """Преобразование координат между системами (SK42 <-> WGS84)."""
 
-    def __init__(self, system: str = "SK42_GAUSS_KRUGER", zone: str = "AUTO"):
+    def __init__(
+        self, system: str = "SK42_GAUSS_KRUGER", zone: str = "AUTO", log_message=None
+    ):
         self.system = system
         self.zone = zone
         self._transformer: Any = None
+        self.log_message = log_message
         self.current_zone: Optional[int] = None
         self._init_transformer()
 
@@ -141,17 +142,32 @@ class CoordinateTransformer:
             self._transformer = Transformer.from_crs(
                 sk42_crs, wgs84_crs, always_xy=True
             )
-            logger.debug(f"Создан трансформер для СК-42 зона {zone} (EPSG:{epsg_code})")
+            if self.log_message:
+                self.log_message(
+                    f"Создан трансформер для СК-42 зона {zone} (EPSG:{epsg_code})",
+                    color="blue",
+                    logger_level="debug",
+                )
 
         except Exception as e:
-            logger.debug(f"Ошибка создания трансформера для зоны {zone}: {e}")
+            if self.log_message:
+                self.log_message(
+                    f"Ошибка создания трансформера для зоны {zone}: {e}",
+                    color="blue",
+                    logger_level="debug",
+                )
             # Fallback к proj4 строке для зоны 7
             sk42_proj4 = "+proj=tmerc +lat_0=0 +lon_0=39 +k=1 +x_0=7500000 +y_0=0 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs"
 
             self._transformer = Transformer.from_crs(
                 CRS.from_proj4(sk42_proj4), CRS.from_epsg(4326), always_xy=True
             )
-            logger.debug("Создан трансформер через proj4 (зона 7 по умолчанию)")
+            if self.log_message:
+                self.log_message(
+                    "Создан трансформер через proj4 (зона 7 по умолчанию)",
+                    color="blue",
+                    logger_level="debug",
+                )
 
     def transform(
         self, latitude: float, longitude: float, to_wgs: bool = True
@@ -203,9 +219,12 @@ class CoordinateTransformer:
                 or self._transformer is None
             ):
                 direction_str = "SK42->WGS" if to_wgs else "WGS->SK42"
-                logger.debug(
-                    f"Переключаемся на зону СК-42: {current_zone} ({direction_str})"
-                )
+                if self.log_message:
+                    self.log_message(
+                        f"Переключаемся на зону СК-42: {current_zone} ({direction_str})",
+                        color="blue",
+                        logger_level="debug",
+                    )
                 self._setup_transformer_for_zone(current_zone)
                 self.current_zone = current_zone
 
@@ -220,9 +239,12 @@ class CoordinateTransformer:
                 lon, lat = self._transformer.transform(longitude, latitude)
                 return (lat, lon)
             except Exception as e:
-                logger.debug(
-                    f"Ошибка преобразования СК-42->WGS84 {latitude}, {longitude}: {e}"
-                )
+                if self.log_message:
+                    self.log_message(
+                        f"Ошибка преобразования СК-42->WGS84 {latitude}, {longitude}: {e}",
+                        color="red",
+                        logger_level="error",
+                    )
                 raise
         else:
             # Преобразование из WGS-84 в СК-42 (обратное)
@@ -235,7 +257,10 @@ class CoordinateTransformer:
                 # Поэтому возвращаем в правильном порядке: (X_sk42, Y_sk42)
                 return (x_sk42, y_sk42)
             except Exception as e:
-                logger.debug(
-                    f"Ошибка обратного преобразования WGS84->СК-42 {latitude}, {longitude}: {e}"
-                )
+                if self.log_message:
+                    self.log_message(
+                        f"Ошибка обратного преобразования WGS84->СК-42 {latitude}, {longitude}: {e}",
+                        color="red",
+                        logger_level="error",
+                    )
                 raise

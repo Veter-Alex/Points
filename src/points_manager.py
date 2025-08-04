@@ -3,7 +3,7 @@
 Содержит функции создания и поиска точек по различным критериям.
 """
 
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from models.city import CityRecord
 from models.points import PointRecord
@@ -37,7 +37,8 @@ def new_point_from_city_data(
     found_city: CityRecord,
     result_parse_xml: PointRecord,
     get_country_by_lat_lon: Callable[[float, float], tuple],
-    get_sk42_coordinates: Callable[[float, float], tuple],
+    get_sk42_coordinates: Callable[[float, float, Any], tuple],
+    log_message=None,
 ) -> PointRecord:
     """
     Создать новый PointRecord на основе найденного города и результата парсинга XML.
@@ -47,6 +48,7 @@ def new_point_from_city_data(
         result_parse_xml (PointRecord): Результат парсинга XML
         get_country_by_lat_lon (Callable): Функция определения страны по координатам
         get_sk42_coordinates (Callable): Функция преобразования в СК-42
+        log_message: Функция для логирования
 
     Returns:
         PointRecord: Новый объект точки
@@ -55,7 +57,7 @@ def new_point_from_city_data(
         result_parse_xml.latitude, result_parse_xml.longitude
     )
     x_sk42, y_sk42 = get_sk42_coordinates(
-        result_parse_xml.latitude, result_parse_xml.longitude
+        result_parse_xml.latitude, result_parse_xml.longitude, log_message
     )
     from src.city_manager import get_area_desc
 
@@ -79,15 +81,17 @@ def new_point_from_city_data(
 def point_without_city(
     result_parse_file: PointRecord,
     get_country_by_lat_lon: Callable[[float, float], tuple],
-    get_sk42_coordinates: Callable[[float, float], tuple],
+    get_sk42_coordinates: Callable[[float, float, Any], tuple],
+    log_message=None,
 ) -> Optional[PointRecord]:
     """
     Создать новый PointRecord, если город не найден из имеющихся данных.
 
     Args:
-        result_parse_xml (PointRecord): Результат парсинга XML
+        result_parse_file (PointRecord): Результат парсинга XML
         get_country_by_lat_lon (Callable): Функция определения страны по координатам
         get_sk42_coordinates (Callable): Функция преобразования в СК-42
+        log_message: Функция для логирования
 
     Returns:
         Optional[PointRecord]: Новый объект точки или None
@@ -99,7 +103,7 @@ def point_without_city(
         result_parse_file.latitude, result_parse_file.longitude
     )
     x_sk42, y_sk42 = get_sk42_coordinates(
-        result_parse_file.latitude, result_parse_file.longitude
+        result_parse_file.latitude, result_parse_file.longitude, log_message
     )
     return PointRecord(
         date=result_parse_file.date,

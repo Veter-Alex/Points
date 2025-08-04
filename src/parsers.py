@@ -11,7 +11,6 @@ from datetime import datetime
 from typing import Optional
 
 from models.points import PointRecord
-from src.logger import logger
 
 
 def safe_float(val: Optional[str]) -> Optional[float]:
@@ -30,17 +29,19 @@ def safe_float(val: Optional[str]) -> Optional[float]:
         return None
 
 
-def parse_xml(xml_path: str) -> Optional[PointRecord]:
+def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
     """
     Универсальный парсер XML-файла с точкой.
 
     Args:
         xml_path (str): Путь к XML файлу
+        log_message (callable, optional): Функция для логирования
 
     Returns:
         Optional[PointRecord]: Объект PointRecord или None, если данные невалидны
     """
-    logger.info(f"Начинаем обработку XML файла: {xml_path}")
+    if log_message:
+        log_message(f"Начинаем обработку XML файла: {xml_path}")
     try:
         with open(xml_path, encoding="utf-8") as f_xml:
             xml_text = f_xml.read()
@@ -189,7 +190,8 @@ def parse_xml(xml_path: str) -> Optional[PointRecord]:
             )
         raise ValueError("Неизвестный формат XML")
     except Exception as e:
-        logger.error(f"Ошибка парсинга XML: {e}")
+        if log_message:
+            log_message(f"Ошибка парсинга XML: {e}", color="red", logger_level="error")
         bad_dir = os.path.join(os.path.dirname(xml_path), "bad")
         os.makedirs(bad_dir, exist_ok=True)
         shutil.move(xml_path, os.path.join(bad_dir, os.path.basename(xml_path)))
@@ -198,21 +200,24 @@ def parse_xml(xml_path: str) -> Optional[PointRecord]:
             shutil.move(spr_path, os.path.join(bad_dir, os.path.basename(spr_path)))
         return None
     finally:
-        logger.info(f"Файл успешно обработан: {xml_path}")
+        if log_message:
+            log_message(f"Файл успешно обработан: {xml_path}", color="blue")
 
 
-def parse_json(json_path: str) -> Optional[PointRecord]:
+def parse_json(json_path: str, log_message=None) -> Optional[PointRecord]:
     """
     Универсальный парсер JSON-файла с точкой.
     Поддерживает различные форматы JSON от разных сервисов геолокации.
 
     Args:
         json_path (str): Путь к JSON файлу
+        log_message (callable, optional): Функция для логирования
 
     Returns:
         Optional[PointRecord]: Объект PointRecord или None, если данные невалидны
     """
-    logger.info(f"Начинаем обработку JSON файла: {json_path}")
+    if log_message:
+        log_message(f"Начинаем обработку JSON файла: {json_path}")
     try:
         with open(json_path, encoding="utf-8") as f:
             json_text = f.read()
@@ -315,7 +320,12 @@ def parse_json(json_path: str) -> Optional[PointRecord]:
         )
 
     except json.JSONDecodeError as e:
-        logger.error(f"Ошибка парсинга JSON (невалидный JSON): {e}")
+        if log_message:
+            log_message(
+                f"Ошибка парсинга JSON (невалидный JSON): {e}",
+                color="red",
+                logger_level="error",
+            )
         bad_dir = os.path.join(os.path.dirname(json_path), "bad")
         os.makedirs(bad_dir, exist_ok=True)
         shutil.move(json_path, os.path.join(bad_dir, os.path.basename(json_path)))
@@ -325,7 +335,8 @@ def parse_json(json_path: str) -> Optional[PointRecord]:
             shutil.move(spr_path, os.path.join(bad_dir, os.path.basename(spr_path)))
         return None
     except Exception as e:
-        logger.error(f"Ошибка парсинга JSON: {e}")
+        if log_message:
+            log_message(f"Ошибка парсинга JSON: {e}", color="red", logger_level="error")
         bad_dir = os.path.join(os.path.dirname(json_path), "bad")
         os.makedirs(bad_dir, exist_ok=True)
         shutil.move(json_path, os.path.join(bad_dir, os.path.basename(json_path)))
@@ -335,4 +346,5 @@ def parse_json(json_path: str) -> Optional[PointRecord]:
             shutil.move(spr_path, os.path.join(bad_dir, os.path.basename(spr_path)))
         return None
     finally:
-        logger.info(f"Файл успешно обработан: {json_path}")
+        if log_message:
+            log_message(f"Файл успешно обработан: {json_path}", color="blue")

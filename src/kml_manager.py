@@ -1,10 +1,9 @@
 import os
 
 from models.points import PointRecord
-from src.logger import logger
 
 
-def create_kml_file(point: PointRecord, kml_file_path: str) -> bool:
+def create_kml_file(point: PointRecord, kml_file_path: str, log_message=None) -> bool:
     """
     Создает KML файл для точки с иерархической структурой папок по дате и времени.
     Args:
@@ -25,7 +24,12 @@ def create_kml_file(point: PointRecord, kml_file_path: str) -> bool:
             hour = time_parts[0]
             minute = time_parts[1]
         else:
-            logger.warning(f"Неверный формат даты/времени: {point.date} {point.time}")
+            if log_message:
+                log_message(
+                    f"Неверный формат даты/времени: {point.date} {point.time}",
+                    level="warning",
+                    color="yellow",
+                )
             return False
         kml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://earth.google.com/kml/2.2">
@@ -93,8 +97,16 @@ Longitude_SK42_Gauss_Kruger - {point.y_sk42 or 'N/A'}</description>
         os.makedirs(os.path.dirname(kml_file_path), exist_ok=True)
         with open(kml_file_path, "w", encoding="utf-8") as f:
             f.write(kml_content)
-        logger.info(f"KML файл успешно создан: {kml_file_path}")
+        if log_message:
+            log_message(
+                f"KML файл успешно создан: {kml_file_path}", level="info", color="blue"
+            )
         return True
     except Exception as e:
-        logger.error(f"Ошибка при создании KML файла {kml_file_path}: {e}")
+        if log_message:
+            log_message(
+                f"Ошибка при создании KML файла {kml_file_path}: {e}",
+                level="error",
+                color="red",
+            )
         return False

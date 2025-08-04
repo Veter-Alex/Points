@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from src.logger import logger
-
 from .city_template import CITY_TXT_TEMPLATE
 
 
@@ -22,11 +20,12 @@ class CityRecord:
 
 
 class CityData:
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: str, log_message):
         """
         Инициализация CityData: путь к файлу, автосоздание и автозагрузка данных.
         """
         self.filepath = filepath
+        self.log_message = log_message
         self.records: List[CityRecord] = []
         self.create_file_if_not_exists()
         self.load()  # Автозагрузка при инициализации
@@ -36,25 +35,35 @@ class CityData:
         Создаёт файл с шаблоном при отсутствии.
         """
         if not os.path.exists(self.filepath):
-            logger.info(
+            self.log_message(
                 f"Файл {self.filepath} с описанием населённых пунктов не найден."
-                f" Создаю новый с шаблоном."
+                f" Создаю новый с шаблоном.",
+                color="blue",
+                logger_level="info",
             )
 
             # Создаём директорию, если нужно
             try:
                 os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
             except OSError as e:
-                logger.error(f"Ошибка создания директории: {e}")
+                self.log_message(
+                    f"Ошибка создания директории: {e}",
+                    color="red",
+                    logger_level="error",
+                )
                 raise
             # Создаём файл с шаблоном
             try:
                 with open(self.filepath, "w", encoding="utf-8") as f:
                     f.write(CITY_TXT_TEMPLATE)
             except OSError as e:
-                logger.error(f"Ошибка создания файла: {e}")
+                self.log_message(
+                    f"Ошибка создания файла: {e}", color="red", logger_level="error"
+                )
                 raise
-            logger.info(f"Файл создан: {self.filepath}")
+            self.log_message(
+                f"Файл создан: {self.filepath}", color="blue", logger_level="info"
+            )
 
     def load(self):
         """
@@ -62,7 +71,9 @@ class CityData:
         Пропускает строки без символа '=' (например, разделители и комментарии).
         """
         self.records = []
-        logger.info(f"Загрузка данных из {self.filepath}")
+        self.log_message(
+            f"Загрузка данных из {self.filepath}", color="blue", logger_level="info"
+        )
 
         try:
             with open(self.filepath, encoding="utf-8") as f:
@@ -75,14 +86,24 @@ class CityData:
                         if record:
                             self.records.append(record)
                     except Exception as e:
-                        logger.error(
-                            f"Ошибка парсинга строки {i} в {self.filepath}: {e}"
+                        self.log_message(
+                            f"Ошибка парсинга строки {i} в {self.filepath}: {e}",
+                            color="red",
+                            logger_level="error",
                         )
                         raise
         except Exception as e:
-            logger.error(f"Ошибка загрузки {self.filepath}: {e}")
+            self.log_message(
+                f"Ошибка загрузки {self.filepath}: {e}",
+                color="red",
+                logger_level="error",
+            )
             raise
-        logger.info(f"Загружено {len(self.records)} записей из {self.filepath}")
+        self.log_message(
+            f"Загружено {len(self.records)} записей из {self.filepath}",
+            color="blue",
+            logger_level="info",
+        )
 
     @staticmethod
     def parse_line(line: str) -> Optional[CityRecord]:
@@ -127,7 +148,8 @@ class CityData:
                 region=region.strip() if region else None,
             )
         except Exception as e:
-            logger.error(f"Ошибка парсинга строки: '{line}' Причина: {e}")
+            # В статическом методе не можем использовать self._log, используем print
+            print(f"Ошибка парсинга строки: '{line}' Причина: {e}")
             raise
 
     def get_by_country(self, country: str) -> List[CityRecord]:
@@ -151,8 +173,10 @@ class CityData:
         Добавить город (только если нет дубликата по name_original), затем сохранить файл.
         """
         if self.get_by_name(city.name_original):
-            logger.warning(
-                f"Город с оригинальным названием '{city.name_original}' уже существует!"
+            self.log_message(
+                f"Город с оригинальным названием '{city.name_original}' уже существует!",
+                color="yellow",
+                logger_level="warning",
             )
             return
         self.records.append(city)
@@ -206,7 +230,11 @@ class CityData:
             for line in data_lines:
                 f.write(line + "\n")
 
-        logger.info(f"Сохранено {len(sorted_records)} записей в {self.filepath}")
+        self.log_message(
+            f"Сохранено {len(sorted_records)} записей в {self.filepath}",
+            color="blue",
+            logger_level="info",
+        )
 
     def create_backup(self):
         """

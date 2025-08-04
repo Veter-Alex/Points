@@ -10,8 +10,6 @@ from typing import Optional, Tuple
 import geopandas as gpd
 from shapely.geometry import Point
 
-from src.logger import logger
-
 _WORLD_GDF: Optional[gpd.GeoDataFrame] = None  # Кэш для GeoDataFrame
 
 
@@ -156,13 +154,16 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
     return country_eng, country_rus
 
 
-def get_sk42_coordinates(lat: float, lon: float) -> Tuple[Optional[int], Optional[int]]:
+def get_sk42_coordinates(
+    lat: float, lon: float, log_message=None
+) -> Tuple[Optional[int], Optional[int]]:
     """
     Преобразует координаты WGS-84 в систему координат СК-42.
 
     Args:
         lat (float): Широта в WGS-84
         lon (float): Долгота в WGS-84
+        log_message: Функция для логирования
 
     Returns:
         Tuple[Optional[int], Optional[int]]: Кортеж (x_sk42, y_sk42) или (None, None) при ошибке
@@ -170,18 +171,30 @@ def get_sk42_coordinates(lat: float, lon: float) -> Tuple[Optional[int], Optiona
     from src.coordinate_transformer import CoordinateTransformer
 
     if lon < 18 or lon > 165:
-        logger.warning(f"Координаты вне зоны действия СК-42: {lat}, {lon}")
+        if log_message:
+            log_message(
+                f"Координаты вне зоны действия СК-42: {lat}, {lon}",
+                color="yellow",
+                logger_level="warning",
+            )
         x_sk42, y_sk42 = None, None
     else:
         try:
-            transformer = CoordinateTransformer(system="SK42_GAUSS_KRUGER", zone="AUTO")
+            transformer = CoordinateTransformer(
+                system="SK42_GAUSS_KRUGER", zone="AUTO", log_message=log_message
+            )
             x_sk42, y_sk42 = transformer.transform(lat, lon, to_wgs=False)
             if x_sk42 is not None and (math.isinf(x_sk42) or math.isnan(x_sk42)):
                 x_sk42 = None
             if y_sk42 is not None and (math.isinf(y_sk42) or math.isnan(y_sk42)):
                 y_sk42 = None
         except Exception as e:
-            logger.error(f"Ошибка преобразования координат WGS84->СК-42: {e}")
+            if log_message:
+                log_message(
+                    f"Ошибка преобразования координат WGS84->СК-42: {e}",
+                    color="red",
+                    logger_level="error",
+                )
             x_sk42, y_sk42 = None, None
     x_sk42 = int(x_sk42) if x_sk42 is not None else None
     y_sk42 = int(y_sk42) if y_sk42 is not None else None

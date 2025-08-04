@@ -2,10 +2,11 @@ import os
 from typing import List
 
 from models.points import PointRecord
-from src.logger import logger
 
 
-def create_word_report(points_folder: List[PointRecord], report_path: str) -> bool:
+def create_word_report(
+    points_folder: List[PointRecord], report_path: str, log_message=None
+) -> bool:
     """
     Создает Word отчет с точками, сгруппированными по странам и областям.
     Сначала точки на территории России (разные области), потом Украины, потом остальные страны.
@@ -162,14 +163,27 @@ def create_word_report(points_folder: List[PointRecord], report_path: str) -> bo
                             add_normal_paragraph(line)
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
         doc.save(report_path)
-        logger.info(f"Word отчет успешно создан: {report_path}")
+        if log_message:
+            log_message(
+                f"Word отчет успешно создан: {report_path}", level="info", color="blue"
+            )
         return True
     except ImportError as e:
-        logger.error(f"Модуль python-docx не установлен: {e}")
-        logger.info("Установите модуль командой: pip install python-docx")
+        if log_message:
+            log_message(
+                f"Модуль python-docx не установлен: {e}", level="error", color="red"
+            )
+            log_message(
+                "Установите модуль командой: pip install python-docx",
+                level="info",
+                color="blue",
+            )
         return False
     except Exception as e:
-        logger.error(f"Ошибка при создании Word отчета {report_path}: {e}")
-        return False
-        logger.error(f"Ошибка при создании Word отчета {report_path}: {e}")
+        if log_message:
+            log_message(
+                f"Ошибка при создании Word отчета {report_path}: {e}",
+                level="error",
+                color="red",
+            )
         return False

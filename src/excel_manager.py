@@ -10,16 +10,18 @@ import pandas as pd
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from models.points import PointRecord
-from src.logger import logger
 
 
-def save_points_without_city_to_csv(points: List[PointRecord], csv_path: str) -> bool:
+def save_points_without_city_to_csv(
+    points: List[PointRecord], csv_path: str, log_message=None
+) -> bool:
     """
     Сохраняет список точек без города в CSV-файл.
 
     Args:
         points (List[PointRecord]): Список точек без города
         csv_path (str): Путь к CSV-файлу
+        log_message: Функция для логирования
 
     Returns:
         bool: True если успешно, False если ошибка
@@ -133,20 +135,33 @@ def save_points_without_city_to_csv(points: List[PointRecord], csv_path: str) ->
                         row.get("File_Path", ""),
                     ]
                 )
-        logger.info(f"Точки без города сохранены в {csv_path}")
+        if log_message:
+            log_message(
+                f"Точки без города сохранены в {csv_path}",
+                color="blue",
+                logger_level="info",
+            )
         return True
     except Exception as e:
-        logger.warning(f"Ошибка при сохранении точек без города в CSV: {e}")
+        if log_message:
+            log_message(
+                f"Ошибка при сохранении точек без города в CSV: {e}",
+                color="yellow",
+                logger_level="warning",
+            )
         return False
 
 
-def save_points_to_excel(points_folder: List[PointRecord], data_xlsx_path: str) -> bool:
+def save_points_to_excel(
+    points_folder: List[PointRecord], data_xlsx_path: str, log_message=None
+) -> bool:
     """
     Сохраняет список PointRecord в Excel с форматированием переносов строк.
 
     Args:
         points_folder (List[PointRecord]): Список объектов PointRecord для сохранения
         data_xlsx_path (str): Путь к файлу Excel для сохранения
+        log_message: Функция для логирования
 
     Returns:
         bool: True если сохранение успешно, False если произошла ошибка
@@ -256,8 +271,16 @@ def save_points_to_excel(points_folder: List[PointRecord], data_xlsx_path: str) 
                     adjusted_width = min(max(max_length + 2, 8), 50)
                     worksheet.column_dimensions[col_letter].width = adjusted_width
 
-        logger.info(f"Excel файл успешно сохранён: {data_xlsx_path}")
+        if log_message:
+            log_message(
+                f"Excel файл успешно сохранён: {data_xlsx_path}",
+                level="info",
+                color="blue",
+            )
         return True
     except Exception as e:
-        logger.warning(f"Ошибка при сохранении Excel: {e}")
+        if log_message:
+            log_message(
+                f"Ошибка при сохранении Excel: {e}", level="warning", color="yellow"
+            )
         return False

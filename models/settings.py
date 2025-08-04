@@ -1,8 +1,9 @@
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from src.logger import logger
+logger = logging.getLogger("PointsManager")
 
 
 class Settings:
@@ -170,6 +171,30 @@ class Settings:
         logger.info("Файл базы данных точек: {}", self._mainDataCSV)
         logger.info("Уровень логирования: {}", self._log_level)
 
+    def validate(self) -> Dict[str, str]:
+        """
+        Проверить корректность настроек. Возвращает словарь ошибок (пустой, если всё ок).
+        """
+        errors = {}
+        # Проверка директории rootFolder
+        if not os.path.isdir(self.rootFolder):
+            errors["rootFolder"] = f"Директория не найдена: {self.rootFolder}"
+        # Проверка файла mainDataCSV (только путь, не содержимое)
+        main_csv_dir = os.path.dirname(self.mainDataCSV)
+        if main_csv_dir and not os.path.isdir(main_csv_dir):
+            errors["mainDataCSV"] = f"Директория для CSV не найдена: {main_csv_dir}"
+        # Проверка файла cityDataFile (только путь, не содержимое)
+        city_file_dir = os.path.dirname(self.cityDataFile)
+        if city_file_dir and not os.path.isdir(city_file_dir):
+            errors["cityDataFile"] = (
+                f"Директория для файла городов не найдена: {city_file_dir}"
+            )
+        # Проверка уровня логирования
+        valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if self.log_level not in valid_levels:
+            errors["log_level"] = f"Недопустимый уровень логирования: {self.log_level}"
+        return errors
+
     def save(self) -> None:
         """
         Сохранить текущие настройки в файл.
@@ -203,11 +228,13 @@ class Settings:
         """
         Сохранить настройки в указанный файл.
         """
-        try:
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        except Exception as e:
-            logger.error("Ошибка при создании директории для файла настроек: {}", e)
-            return
+        dirpath = os.path.dirname(filepath)
+        if dirpath:
+            try:
+                os.makedirs(dirpath, exist_ok=True)
+            except Exception as e:
+                logger.error("Ошибка при создании директории для файла настроек: {}", e)
+                return
 
         # Сохраняем rootFolder в том виде, как он был указан пользователем (относительный/абсолютный)
         lines = [

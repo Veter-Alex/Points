@@ -15,7 +15,6 @@ from src.excel_manager import save_points_to_excel, save_points_without_city_to_
 from src.file_manager import find_folders_missing_data_csv
 from src.geo_manager import get_country_by_lat_lon, get_sk42_coordinates
 from src.kml_manager import create_kml_file
-from src.logger import logger
 from src.parsers import parse_json, parse_xml
 from src.points_manager import (
     find_point_by_lat_lon,
@@ -26,7 +25,11 @@ from src.word_report_manager import create_word_report
 
 
 def find_and_parse_files(
-    input_folder: str, city_data: CityData, points_data: PointsData, settings: Settings
+    input_folder: str,
+    city_data: CityData,
+    points_data: PointsData,
+    settings: Settings,
+    log_message=None,
 ) -> None:
     """
     Основная функция для поиска папок с отсутствующим data.xlsx и парсинга xml и json файлов.
@@ -41,9 +44,13 @@ def find_and_parse_files(
     # Список для хранения точек без города
     points_to_edit: List[PointRecord] = []
 
+    # Создаем обертку для get_sk42_coordinates с log_message
+    def get_sk42_with_logging(lat: float, lon: float, log_msg=None):
+        return get_sk42_coordinates(lat, lon, log_msg or log_message)
+
     # Проходим по всем папкам, где отсутствует data.xlsx
     for folder in find_folders_missing_data_csv(input_folder):
-        logger.info(f"Папка без data.xlsx: {folder}")
+        log_message(f"Папка без data.xlsx: {folder}")
         # Список точек, найденных в текущей папке
         points_folder: List[PointRecord] = []
         # Перебираем все файлы в папке
@@ -52,10 +59,14 @@ def find_and_parse_files(
             result_parse: Optional[PointRecord] = None
             # Если файл XML — парсим как XML
             if file.lower().endswith(".xml"):
-                result_parse = parse_xml(os.path.join(folder, file))
+                if log_message:
+                    log_message(f"Парсинг XML: {file}")
+                result_parse = parse_xml(os.path.join(folder, file), log_message)
             # Если файл JSON — парсим как JSON
             if file.lower().endswith(".json"):
-                result_parse = parse_json(os.path.join(folder, file))
+                if log_message:
+                    log_message(f"Парсинг JSON: {file}")
+                result_parse = parse_json(os.path.join(folder, file), log_message)
             # Если удалось распарсить точку
             if result_parse is not None:
                 # Если в точке указан город
@@ -68,13 +79,23 @@ def find_and_parse_files(
                             found_city,
                             result_parse,
                             get_country_by_lat_lon,
-                            get_sk42_coordinates,
+                            get_sk42_with_logging,
+                            log_message,
                         )
                     else:
                         # Если город не найден — логируем и добавляем в список не найденных
-                        logger.warning(
-                            f"Город не найден в city_data: {result_parse.city}"
-                        )
+                        if log_message:
+                            log_message(
+                                f"Город не найден в city_data: {result_parse.city}",
+                                color="red",
+                                logger_level="warning",
+                            )
+                        else:
+                            log_message(
+                                f"Город не найден в city_data: {result_parse.city}",
+                                color="red",
+                                logger_level="warning",
+                            )
                         country_eng, country_rus = get_country_by_lat_lon(
                             result_parse.latitude, result_parse.longitude
                         )
@@ -107,7 +128,8 @@ def find_and_parse_files(
                                 found_city,
                                 result_parse,
                                 get_country_by_lat_lon,
-                                get_sk42_coordinates,
+                                get_sk42_with_logging,
+                                log_message,
                             )
 
                     else:
@@ -115,7 +137,8 @@ def find_and_parse_files(
                         point_to_edit = point_without_city(
                             result_parse,
                             get_country_by_lat_lon,
-                            get_sk42_coordinates,
+                            get_sk42_with_logging,
+                            log_message,
                         )
                         if point_to_edit is not None:
                             points_to_edit.append(point_to_edit)
@@ -124,15 +147,24 @@ def find_and_parse_files(
                 if new_point is not None:
                     points_data.add_point(new_point)
                     points_folder.append(new_point)
-                    logger.info(
-                        f"Добавлена точка: дата {new_point.date}, время {new_point.time}, {new_point.area_desc} координаты: широта={new_point.latitude}, долгота={new_point.longitude}"
-                    )
+                    if log_message:
+                        log_message(
+                            f"Добавлена точка: дата {new_point.date}, время {new_point.time}, {new_point.area_desc} координаты: широта={new_point.latitude}, долгота={new_point.longitude}",
+                            color="blue",
+                        )
+                    else:
+                        log_message(
+                            f"Добавлена точка: дата {new_point.date}, время {new_point.time}, {new_point.area_desc} координаты: широта={new_point.latitude}, долгота={new_point.longitude}"
+                        )
 
         # Если найдены точки — сохраняем их в Excel, создаём KML и Word-отчёт
         if points_folder:
             data_xlsx_path = os.path.join(folder, "data.xlsx")
-            save_points_to_excel(points_folder, data_xlsx_path)
-            logger.info(f"Точки сохранены в {data_xlsx_path}")
+            save_points_to_excel(points_folder, data_xlsx_path, log_message)
+            if log_message:
+                log_message(f"Точки сохранены в {data_xlsx_path}", color="blue")
+            else:
+                log_message(f"Точки сохранены в {data_xlsx_path}")
             # Для каждой точки создаём KML-файл
             for point in points_folder:
                 if point.file_path:
@@ -143,11 +175,22 @@ def find_and_parse_files(
                         folder,
                         f"point_{point.latitude}_{point.longitude}_{point.time.replace(':', '')}.kml",
                     )
-                create_kml_file(point, kml_file_path)
-                logger.info(f"Создан KML файл: {kml_file_path}")
+                create_kml_file(point, kml_file_path, log_message)
+                if log_message:
+                    log_message(f"Создан KML файл: {kml_file_path}", color="blue")
+                else:
+                    log_message(f"Создан KML файл: {kml_file_path}")
             # Создаём Word-отчёт по точкам
-            create_word_report(points_folder, os.path.join(folder, "report.docx"))
-            logger.info(f"Создан Word отчёт: {os.path.join(folder, 'report.docx')}")
+            create_word_report(
+                points_folder, os.path.join(folder, "report.docx"), log_message
+            )
+            if log_message:
+                log_message(
+                    f"Создан Word отчёт: {os.path.join(folder, 'report.docx')}",
+                    color="blue",
+                )
+            else:
+                log_message(f"Создан Word отчёт: {os.path.join(folder, 'report.docx')}")
 
     # Сохраняем все точки в основной CSV
     points_data.save()
@@ -158,9 +201,14 @@ def find_and_parse_files(
         city_txt_path = getattr(settings, "cityDataFile", None) or "city.txt"
         city_txt_dir = os.path.dirname(city_txt_path)
         wrong_city_file = os.path.join(city_txt_dir, "wrong_cities.txt")
-        logger.debug("Не найденные города:")
-        for city in wrong_city_data:
-            logger.debug(f" - {city}")
+        if log_message:
+            log_message("Не найденные города:", color="yellow", logger_level="debug")
+            for city in wrong_city_data:
+                log_message(f" - {city}", color="yellow", logger_level="debug")
+        else:
+            log_message("Не найденные города:", color="yellow", logger_level="debug")
+            for city in wrong_city_data:
+                log_message(f" - {city}", color="yellow", logger_level="debug")
         # Читаем уже существующие строки, если файл есть
         existing_cities = set()
         if os.path.exists(wrong_city_file):
@@ -173,11 +221,22 @@ def find_and_parse_files(
             with open(wrong_city_file, "a", encoding="utf-8") as f:
                 for c in new_cities:
                     f.write(c + "\n")
-            logger.info(f"Не найденные города добавлены в {wrong_city_file}")
+            if log_message:
+                log_message(
+                    f"Не найденные города добавлены в {wrong_city_file}", color="yellow"
+                )
+            else:
+                log_message(f"Не найденные города добавлены в {wrong_city_file}")
         else:
-            logger.info(
-                f"Нет новых не найденных городов для добавления в {wrong_city_file}"
-            )
+            if log_message:
+                log_message(
+                    f"Нет новых не найденных городов для добавления в {wrong_city_file}",
+                    color="yellow",
+                )
+            else:
+                log_message(
+                    f"Нет новых не найденных городов для добавления в {wrong_city_file}"
+                )
 
     # Если есть точки без города — сохраняем их в отдельный CSV-файл рядом с AllPoint.csv
     if points_to_edit:
@@ -185,10 +244,23 @@ def find_and_parse_files(
         all_point_csv = getattr(points_data, "file_path", None) or settings.mainDataCSV
         all_point_dir = os.path.dirname(all_point_csv)
         points_to_edit_file = os.path.join(all_point_dir, "points_without_city.csv")
-        logger.debug("Точки без города:")
-        for point in points_to_edit:
-            logger.debug(
-                f" - дата: {point.date}, время: {point.time}, {point.area_desc}, координаты: широта={point.latitude}, долгота={point.longitude}"
-            )
+        if log_message:
+            log_message("Точки без города:", color="yellow", logger_level="debug")
+            for point in points_to_edit:
+                log_message(
+                    f" - дата: {point.date}, время: {point.time}, {point.area_desc}, координаты: широта={point.latitude}, долгота={point.longitude}",
+                    color="yellow",
+                    logger_level="debug",
+                )
+        else:
+            log_message("Точки без города:", color="yellow", logger_level="debug")
+            for point in points_to_edit:
+                log_message(
+                    f" - дата: {point.date}, время: {point.time}, {point.area_desc}, координаты: широта={point.latitude}, долгота={point.longitude}",
+                    color="yellow",
+                    logger_level="debug",
+                )
         # Сохраняем точки без города в CSV
-        save_points_without_city_to_csv(points_to_edit, points_to_edit_file)
+        save_points_without_city_to_csv(
+            points_to_edit, points_to_edit_file, log_message
+        )
