@@ -1,28 +1,35 @@
+
 """
-Главный модуль приложения для обработки точек из XML/JSON файлов.
+Главный модуль приложения PointsManager.
+
+Запускает графический интерфейс для обработки точек из XML/JSON файлов.
+Содержит точку входа main() с подробными комментариями и докстрингами согласно лучшим практикам.
 """
 
-import os
-from typing import NoReturn
 
-from models.city import CityData
 from models.logger import Logger
-from models.points import PointsData
 from models.settings import Settings
-from src.core import find_and_parse_files
 from src.gui_manager import PointsGUI
-
-# Загрузить настройки
-settings = Settings()
-log_manager = Logger(settings)
-logger = log_manager.get_logger()
 
 
 def main() -> None:
-    # Запустить GUI, передав экземпляры Settings и logger
+    """
+    Точка входа приложения: инициализация и запуск графического интерфейса PointsManager.
+
+    Последовательность действий:
+        1. Загружает настройки приложения.
+        2. Инициализирует логгер с заданными настройками.
+        3. Создает и запускает графический интерфейс PointsGUI.
+    """
+    # Загружаем настройки приложения
+    settings = Settings()
+    # Инициализируем логгер
+    logger = Logger(settings).get_logger()
+    # Создаем и запускаем GUI
     app = PointsGUI(settings, logger)
     app.mainloop()
 
 
+# Запуск приложения при прямом вызове модуля
 if __name__ == "__main__":
     main()
