@@ -9,6 +9,8 @@ openpyxl>=3.1.0
 geopandas>=1.0.0
 shapely>=2.0.0
 pyproj>=3.7.0
+fiona>=1.9.0
+pyogrio>=0.7.0
 
 # Document Generation
 python-docx>=1.2.0

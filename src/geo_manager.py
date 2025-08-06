@@ -1,4 +1,3 @@
-
 """
 Модуль geo_manager.py
 =====================
@@ -12,6 +11,7 @@
 
 import math
 import os
+import sys
 from typing import Optional, Tuple
 
 import geopandas as gpd  # type: ignore
@@ -21,6 +21,10 @@ from shapely.geometry import Point  # type: ignore
 _WORLD_GDF: Optional[gpd.GeoDataFrame] = None
 
 
+def resource_path(relative_path):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.abspath(relative_path)
 
 
 def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
@@ -41,7 +45,7 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
     global _WORLD_GDF
     if _WORLD_GDF is None:
         # Загружаем геоданные стран из geojson при первом вызове
-        geojson_path = os.path.join(os.path.dirname(__file__), "countries.geojson")
+        geojson_path = resource_path("src/countries.geojson")
         _WORLD_GDF = gpd.read_file(geojson_path)
     point = Point(lon, lat)
     # Ищем страну по точному попаданию точки в геометрию
@@ -50,7 +54,9 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
         country_eng = matches.iloc[0]["name"]
     else:
         # Если точное попадание не найдено, ищем по буферу вокруг точки (0.02 градуса)
-        buffer_matches = _WORLD_GDF[_WORLD_GDF["geometry"].intersects(point.buffer(0.02))]
+        buffer_matches = _WORLD_GDF[
+            _WORLD_GDF["geometry"].intersects(point.buffer(0.02))
+        ]
         country_eng = buffer_matches.iloc[0]["name"] if not buffer_matches.empty else ""
     # Переводим название страны на русский язык (словарь переводов)
     # Словарь формируется на основе уникальных значений из поля "страна" файла city.txt
@@ -242,7 +248,6 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
     }
     country_rus = country_translate.get(country_eng, country_eng)
     return country_eng, country_rus
-
 
 
 def get_sk42_coordinates(

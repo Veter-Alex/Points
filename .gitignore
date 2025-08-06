@@ -9,7 +9,6 @@ __pycache__/
 .eggs/
 *.egg
 *.manifest
-*.spec
 
 # VS Code
 .vscode/
@@ -59,3 +58,5 @@ test_output/
 # Custom
 EXAMPLE/
 INPUT/
+build/
+dist/

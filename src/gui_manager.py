@@ -15,7 +15,6 @@ import customtkinter as ctk  # type: ignore
 from src.core import find_and_parse_files
 
 
-
 class TXTFileDialog(ctk.CTkToplevel):
     """
     Кастомный диалог для выбора TXT файла или директории.
@@ -23,6 +22,7 @@ class TXTFileDialog(ctk.CTkToplevel):
     Args:
         parent: Родительское окно.
     """
+
     def __init__(self, parent):
         super().__init__(parent)
         self.result = None
@@ -45,7 +45,6 @@ class TXTFileDialog(ctk.CTkToplevel):
         x = parent.winfo_x() + (parent.winfo_width() // 2) - 190
         y = parent.winfo_y() + (parent.winfo_height() // 2) - 100
         self.geometry(f"+{x}+{y}")
-    
 
     def create_widgets(self):
         """
@@ -57,18 +56,33 @@ class TXTFileDialog(ctk.CTkToplevel):
             main_frame,
             text="Выберите TXT файл или директорию для создания city.txt",
             justify="center",
-            wraplength=350
+            wraplength=350,
         )
         desc_label.pack(pady=(15, 25), padx=10)
         button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         button_frame.pack(fill="x", pady=(0, 15), padx=10)
         # Кнопка выбора файла
-        ctk.CTkButton(button_frame, text="📄 Файл", width=110, height=40, command=self.choose_file).pack(side="left", padx=(0, 5))
+        ctk.CTkButton(
+            button_frame, text="📄 Файл", width=110, height=40, command=self.choose_file
+        ).pack(side="left", padx=(0, 5))
         # Кнопка выбора директории
-        ctk.CTkButton(button_frame, text="📁 Папка", width=110, height=40, command=self.choose_directory).pack(side="left", padx=(5, 5))
+        ctk.CTkButton(
+            button_frame,
+            text="📁 Папка",
+            width=110,
+            height=40,
+            command=self.choose_directory,
+        ).pack(side="left", padx=(5, 5))
         # Кнопка отмены
-        ctk.CTkButton(button_frame, text="Отмена", width=110, height=40, fg_color="gray", hover_color="darkgray", command=self.cancel).pack(side="left", padx=(5, 0))
-    
+        ctk.CTkButton(
+            button_frame,
+            text="Отмена",
+            width=110,
+            height=40,
+            fg_color="gray",
+            hover_color="darkgray",
+            command=self.cancel,
+        ).pack(side="left", padx=(5, 0))
 
     def choose_file(self):
         """
@@ -156,7 +170,7 @@ class CSVFileDialog(ctk.CTkToplevel):
             main_frame,
             text="Вы можете выбрать существующий CSV файл\nили указать директорию для создания нового файла AllPoint.csv",
             justify="center",
-            wraplength=350
+            wraplength=350,
         )
         desc_label.pack(pady=(15, 25), padx=10)
 
@@ -170,7 +184,7 @@ class CSVFileDialog(ctk.CTkToplevel):
             text="📄 Выбрать файл",
             width=110,
             height=40,
-            command=self.choose_file
+            command=self.choose_file,
         )
         file_button.pack(side="left", padx=(0, 5))
 
@@ -180,7 +194,7 @@ class CSVFileDialog(ctk.CTkToplevel):
             text="📁 Выбрать папку",
             width=110,
             height=40,
-            command=self.choose_directory
+            command=self.choose_directory,
         )
         dir_button.pack(side="left", padx=(5, 5))
 
@@ -192,7 +206,7 @@ class CSVFileDialog(ctk.CTkToplevel):
             height=40,
             fg_color="gray",
             hover_color="darkgray",
-            command=self.cancel
+            command=self.cancel,
         )
         cancel_button.pack(side="left", padx=(5, 0))
 
@@ -311,7 +325,7 @@ class PointsGUI(ctk.CTk):
         self.combo_log = ctk.CTkComboBox(
             self.settings_frame,
             values=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-            command=self.on_log_level_changed
+            command=self.on_log_level_changed,
         )
         self.combo_log.set(self.settings.log_level)
         self.combo_log.grid(row=3, column=1, padx=5, sticky="w")
@@ -319,23 +333,25 @@ class PointsGUI(ctk.CTk):
         # ===== Область для логов =====
         self.log_frame = ctk.CTkFrame(self)
         self.log_frame.pack(pady=10, fill="both", expand=True, padx=20)
-        
+
         # Заголовок и кнопка очистки логов
         self.log_header_frame = ctk.CTkFrame(self.log_frame)
         self.log_header_frame.pack(fill="x", padx=5, pady=5)
-        
-        self.log_label = ctk.CTkLabel(self.log_header_frame, text="Журнал событий:", font=("Arial", 12, "bold"))
+
+        self.log_label = ctk.CTkLabel(
+            self.log_header_frame, text="Журнал событий:", font=("Arial", 12, "bold")
+        )
         self.log_label.pack(side="left", padx=5)
-        
+
         self.clear_log_button = ctk.CTkButton(
-            self.log_header_frame, 
-            text="Очистить логи", 
-            width=100, 
+            self.log_header_frame,
+            text="Очистить логи",
+            width=100,
             height=25,
-            command=self.clear_logs
+            command=self.clear_logs,
         )
         self.clear_log_button.pack(side="right", padx=5)
-        
+
         self.log_text = ctk.CTkTextbox(self.log_frame, width=950, height=250)
         self.log_text.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
@@ -362,17 +378,19 @@ class PointsGUI(ctk.CTk):
         # Создаем главное меню
         menubar = tk.Menu(self)
         self.config(menu=menubar)
-        
+
         # Меню "Файл"
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Файл", menu=file_menu)
         file_menu.add_command(label="Выход", command=self.exit_application)
-        
+
         # Меню "Команды"
         commands_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Команды", menu=commands_menu)
-        commands_menu.add_command(label="Очистить входную директорию", command=self.clean_input_directory)
-        
+        commands_menu.add_command(
+            label="Очистить входную директорию", command=self.clean_input_directory
+        )
+
         # Меню "Помощь"
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Помощь", menu=help_menu)
@@ -392,66 +410,95 @@ class PointsGUI(ctk.CTk):
             f"Из входной директории:\n{self.settings.rootFolder}\n\n"
             "будут удалены все файлы кроме xml, json и spr\n\n"
             "Продолжить очистку?",
-            icon="warning"
+            icon="warning",
         )
-        
+
         if result:
             try:
                 # Импортируем функции очистки
-                from src.cleanup_input_folder import clean_input_folder, process_bad_folders
-                
-                self.log_message("Начинается очистка входной директории...", color="blue")
-                
+                from src.cleanup_input_folder import (
+                    clean_input_folder,
+                    process_bad_folders,
+                )
+
+                self.log_message(
+                    "Начинается очистка входной директории...", color="blue"
+                )
+
                 # Отключаем кнопку обработки и активируем прогресс-бар
                 self.button_process.configure(state="disabled")
                 self.progress_bar.set(0)
-                
+
                 # Выполняем очистку в отдельном потоке
                 def cleanup_thread():
                     try:
                         # Создаем callback для обновления прогресса
                         def progress_callback(message):
-                            self.after(0, lambda: self.log_message(message, color="blue"))
-                            self.after(0, lambda: self.status_label.configure(text=message))
-                        
+                            self.after(
+                                0, lambda: self.log_message(message, color="blue")
+                            )
+                            self.after(
+                                0, lambda: self.status_label.configure(text=message)
+                            )
+
                         # Запускаем анимацию прогресс-бара
                         self.after(0, self._animate_cleanup_progress)
-                        
+
                         # Выполняем очистку файлов
-                        self.after(0, lambda: self.status_label.configure(text="Очистка файлов..."))
+                        self.after(
+                            0,
+                            lambda: self.status_label.configure(
+                                text="Очистка файлов..."
+                            ),
+                        )
                         clean_input_folder(self.settings.rootFolder, progress_callback)
-                        
+
                         # Выполняем обработку папок bad
-                        self.after(0, lambda: self.status_label.configure(text="Обработка папок 'bad'..."))
+                        self.after(
+                            0,
+                            lambda: self.status_label.configure(
+                                text="Обработка папок 'bad'..."
+                            ),
+                        )
                         process_bad_folders(self.settings.rootFolder, progress_callback)
-                        
+
                         # Завершение
                         self.after(0, self._cleanup_completed)
-                        
+
                     except Exception as e:
                         # Используем after для безопасного обновления GUI
                         self.after(0, lambda: self._cleanup_error(str(e)))
-                
+
                 # Запускаем очистку в отдельном потоке
-                self.cleanup_thread = threading.Thread(target=cleanup_thread, daemon=True)
+                self.cleanup_thread = threading.Thread(
+                    target=cleanup_thread, daemon=True
+                )
                 self.cleanup_thread.start()
-                
+
             except ImportError as e:
-                self.log_message(f"Ошибка импорта модуля очистки: {e}", color="red", logger_level="error")
-                messagebox.showerror("Ошибка", f"Не удалось загрузить модуль очистки:\n{e}")
+                self.log_message(
+                    f"Ошибка импорта модуля очистки: {e}",
+                    color="red",
+                    logger_level="error",
+                )
+                messagebox.showerror(
+                    "Ошибка", f"Не удалось загрузить модуль очистки:\n{e}"
+                )
         else:
-            self.log_message("Очистка входной директории отменена пользователем", color="orange")
+            self.log_message(
+                "Очистка входной директории отменена пользователем", color="orange"
+            )
 
     def _animate_cleanup_progress(self):
         """Анимация прогресс-бара во время очистки."""
-        if hasattr(self, 'cleanup_thread') and self.cleanup_thread.is_alive():
+        if hasattr(self, "cleanup_thread") and self.cleanup_thread.is_alive():
             # Обновляем прогресс-бар (неопределенный прогресс)
             current = self.progress_bar.get()
             if current >= 0.9:
                 self.progress_bar.set(0.1)
             else:
                 self.progress_bar.set(current + 0.1)
-            
+
             # Продолжаем анимацию через 200ms
             self.after(200, self._animate_cleanup_progress)
 
@@ -465,32 +512,42 @@ class PointsGUI(ctk.CTk):
 
     def _cleanup_error(self, error_message):
         """Обработка ошибки очистки - вызывается в основном потоке."""
-        self.log_message(f"Ошибка при очистке: {error_message}", color="red", logger_level="error")
+        self.log_message(
+            f"Ошибка при очистке: {error_message}", color="red", logger_level="error"
+        )
         self.button_process.configure(state="normal")
         self.progress_bar.set(0)  # Сброс прогресса
         self.status_label.configure(text="Ошибка очистки")
-        messagebox.showerror("Ошибка очистки", f"Произошла ошибка при очистке:\n{error_message}")
+        messagebox.showerror(
+            "Ошибка очистки", f"Произошла ошибка при очистке:\n{error_message}"
+        )
 
     def show_help(self):
         """Показать справку."""
         try:
-            help_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "help.md")
-            
+            help_file = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), "help.md"
+            )
+
             # Проверяем существование файла справки
             if os.path.exists(help_file):
                 # Открываем файл справки в системном редакторе
-                if os.name == 'nt':  # Windows
+                if os.name == "nt":  # Windows
                     os.startfile(help_file)
                 else:  # Linux/Mac
                     os.system(f"xdg-open {help_file}")
-                
+
                 self.log_message(f"Открыт файл справки: {help_file}", color="blue")
             else:
-                messagebox.showwarning("Справка недоступна", f"Файл справки не найден:\n{help_file}")
+                messagebox.showwarning(
+                    "Справка недоступна", f"Файл справки не найден:\n{help_file}"
+                )
                 self.log_message(f"Файл справки не найден: {help_file}", color="orange")
-                
+
         except Exception as e:
-            self.log_message(f"Ошибка при открытии справки: {e}", color="red", logger_level="error")
+            self.log_message(
+                f"Ошибка при открытии справки: {e}", color="red", logger_level="error"
+            )
             messagebox.showerror("Ошибка", f"Не удалось открыть справку:\n{e}")
 
     def log_message(self, message, color=None, logger_level="info"):
@@ -507,13 +564,15 @@ class PointsGUI(ctk.CTk):
         # Иерархия уровней логирования
         level_hierarchy = {
             "DEBUG": 0,
-            "INFO": 1, 
+            "INFO": 1,
             "WARNING": 2,
             "ERROR": 3,
-            "CRITICAL": 4
+            "CRITICAL": 4,
         }
         # Показываем сообщение в GUI только если его уровень >= текущего уровня
-        if level_hierarchy.get(message_level, 1) >= level_hierarchy.get(current_level, 1):
+        if level_hierarchy.get(message_level, 1) >= level_hierarchy.get(
+            current_level, 1
+        ):
             tag = None
             if color:
                 tag = color
@@ -522,7 +581,7 @@ class PointsGUI(ctk.CTk):
             # Добавляем сообщение в конец лога
             self.log_text.insert("end", message + "\n", tag if color else None)
             # Ограничиваем количество строк в логе (максимум 1000 строк)
-            lines = self.log_text.get("1.0", "end").count('\n')
+            lines = self.log_text.get("1.0", "end").count("\n")
             if lines > 1000:
                 # Удаляем первые 100 строк при превышении лимита
                 self.log_text.delete("1.0", "101.0")
@@ -545,19 +604,19 @@ class PointsGUI(ctk.CTk):
         """Перезагрузка данных точек при изменении файла базы данных."""
         try:
             from models.points import PointsData
-            
+
             # Обнуляем старые данные
             self.points_data = None
-            
+
             # Загружаем новые данные
             self.points_data = PointsData(self.settings.mainDataCSV, self.log_message)
             self.log_message("Данные точек успешно перезагружены", color="blue")
-            
+
         except Exception as e:
             self.log_message(
-                f"Ошибка при перезагрузке данных точек: {e}", 
-                color="red", 
-                logger_level="error"
+                f"Ошибка при перезагрузке данных точек: {e}",
+                color="red",
+                logger_level="error",
             )
             self.points_data = None
 
@@ -565,19 +624,19 @@ class PointsGUI(ctk.CTk):
         """Перезагрузка данных городов при изменении файла данных о городах."""
         try:
             from models.city import CityData
-            
+
             # Обнуляем старые данные
             self.city_data = None
-            
+
             # Загружаем новые данные
             self.city_data = CityData(self.settings.cityDataFile, self.log_message)
             self.log_message("Данные городов успешно перезагружены", color="blue")
-            
+
         except Exception as e:
             self.log_message(
-                f"Ошибка при перезагрузке данных городов: {e}", 
-                color="red", 
-                logger_level="error"
+                f"Ошибка при перезагрузке данных городов: {e}",
+                color="red",
+                logger_level="error",
             )
             self.city_data = None
 
@@ -624,15 +683,13 @@ class PointsGUI(ctk.CTk):
     def on_log_level_changed(self, new_level):
         """Обработчик изменения уровня логирования."""
         self.settings.log_level = new_level
-        self.log_message(
-            f"Уровень логирования изменен на: {new_level}", color="blue"
-        )
+        self.log_message(f"Уровень логирования изменен на: {new_level}", color="blue")
 
     def choose_csv(self):
         # Открываем кастомный диалог
         dialog = CSVFileDialog(self)
         choice = dialog.get_choice()
-        
+
         if choice == "file":
             file = filedialog.askopenfilename(
                 title="Выберите CSV файл", filetypes=[("CSV", "*.csv")]
@@ -647,14 +704,14 @@ class PointsGUI(ctk.CTk):
                 )
                 # Перезагружаем данные точек
                 self.reload_points_data()
-                
+
         elif choice == "directory":
             directory = filedialog.askdirectory(
                 title="Выберите директорию для создания AllPoint.csv"
             )
             if directory:
                 allpoint_path = os.path.join(directory, "AllPoint.csv")
-                
+
                 if os.path.exists(allpoint_path):
                     # Файл уже существует
                     self.entry_csv.delete(0, "end")
@@ -662,7 +719,8 @@ class PointsGUI(ctk.CTk):
                     self.entry_csv.insert(0, norm_allpoint)
                     self.settings.mainDataCSV = norm_allpoint
                     self.log_message(
-                        f"Выбран существующий файл базы данных: {allpoint_path}", color="blue"
+                        f"Выбран существующий файл базы данных: {allpoint_path}",
+                        color="blue",
                     )
                     # Перезагружаем данные точек
                     self.reload_points_data()
@@ -670,22 +728,28 @@ class PointsGUI(ctk.CTk):
                     # Файл не существует, создаем автоматически
                     try:
                         from models.points import PointsData
+
                         # Создаем файл через PointsData
                         temp_points_data = PointsData(allpoint_path, self.log_message)
-                        
+
                         self.entry_csv.delete(0, "end")
                         norm_allpoint = os.path.normpath(allpoint_path)
                         self.entry_csv.insert(0, norm_allpoint)
                         self.settings.mainDataCSV = norm_allpoint
                         self.log_message(
-                            f"Создан и выбран новый файл базы данных: {allpoint_path}", color="blue"
+                            f"Создан и выбран новый файл базы данных: {allpoint_path}",
+                            color="blue",
                         )
                         # Перезагружаем данные точек (используем созданный объект)
                         self.points_data = temp_points_data
-                        self.log_message("Данные точек инициализированы для работы", color="blue")
+                        self.log_message(
+                            "Данные точек инициализированы для работы", color="blue"
+                        )
                     except Exception as e:
                         self.log_message(
-                            f"Ошибка при создании файла: {e}", color="red", logger_level="error"
+                            f"Ошибка при создании файла: {e}",
+                            color="red",
+                            logger_level="error",
                         )
                         messagebox.showerror("Ошибка", f"Не удалось создать файл:\n{e}")
                         self.points_data = None
@@ -694,7 +758,7 @@ class PointsGUI(ctk.CTk):
         # Открываем кастомный диалог
         dialog = TXTFileDialog(self)
         choice = dialog.get_choice()
-        
+
         if choice == "file":
             file = filedialog.askopenfilename(
                 title="Выберите файл данных о городах", filetypes=[("TXT", "*.txt")]
@@ -709,14 +773,14 @@ class PointsGUI(ctk.CTk):
                 )
                 # Перезагружаем данные городов
                 self.reload_city_data()
-                
+
         elif choice == "directory":
             directory = filedialog.askdirectory(
                 title="Выберите директорию для создания city.txt"
             )
             if directory:
                 city_path = os.path.join(directory, "city.txt")
-                
+
                 if os.path.exists(city_path):
                     # Файл уже существует
                     self.entry_city.delete(0, "end")
@@ -724,7 +788,8 @@ class PointsGUI(ctk.CTk):
                     self.entry_city.insert(0, norm_city)
                     self.settings.cityDataFile = norm_city
                     self.log_message(
-                        f"Выбран существующий файл данных о городах: {city_path}", color="blue"
+                        f"Выбран существующий файл данных о городах: {city_path}",
+                        color="blue",
                     )
                     # Перезагружаем данные городов
                     self.reload_city_data()
@@ -732,59 +797,64 @@ class PointsGUI(ctk.CTk):
                     # Файл не существует, создаем автоматически
                     try:
                         from models.city import CityData
+
                         # Создаем файл через CityData
                         temp_city_data = CityData(city_path, self.log_message)
-                        
+
                         self.entry_city.delete(0, "end")
                         norm_city = os.path.normpath(city_path)
                         self.entry_city.insert(0, norm_city)
                         self.settings.cityDataFile = norm_city
                         self.log_message(
-                            f"Создан и выбран новый файл данных о городах: {city_path}", color="blue"
+                            f"Создан и выбран новый файл данных о городах: {city_path}",
+                            color="blue",
                         )
                         # Перезагружаем данные городов (используем созданный объект)
                         self.city_data = temp_city_data
-                        self.log_message("Данные городов инициализированы для работы", color="blue")
+                        self.log_message(
+                            "Данные городов инициализированы для работы", color="blue"
+                        )
                     except Exception as e:
                         self.log_message(
-                            f"Ошибка при создании файла: {e}", color="red", logger_level="error"
+                            f"Ошибка при создании файла: {e}",
+                            color="red",
+                            logger_level="error",
                         )
                         messagebox.showerror("Ошибка", f"Не удалось создать файл:\n{e}")
                         self.city_data = None
 
     def start_processing(self):
         """Запуск обработки файлов в отдельном потоке."""
-        if hasattr(self, 'processing_thread') and self.processing_thread.is_alive():
+        if hasattr(self, "processing_thread") and self.processing_thread.is_alive():
             self.log_message("Обработка уже запущена!", color="orange")
             return
-            
+
         self.log_message("Запуск обработки файлов...", color="blue")
-        
+
         # Отключаем кнопку обработки и показываем прогресс
         self.button_process.configure(state="disabled", text="Обработка...")
         self.progress_bar.set(0)
         self.status_label.configure(text="Обработка файлов...")
-        
+
         # Запускаем обработку в отдельном потоке
         self.processing_thread = threading.Thread(
-            target=self._process_files_thread,
-            daemon=True
+            target=self._process_files_thread, daemon=True
         )
         self.processing_thread.start()
-        
+
         # Запускаем анимацию прогресс-бара
         self._animate_progress()
 
     def _animate_progress(self):
         """Анимация прогресс-бара во время обработки."""
-        if hasattr(self, 'processing_thread') and self.processing_thread.is_alive():
+        if hasattr(self, "processing_thread") and self.processing_thread.is_alive():
             # Обновляем прогресс-бар (неопределенный прогресс)
             current = self.progress_bar.get()
             if current >= 0.9:
                 self.progress_bar.set(0.1)
             else:
                 self.progress_bar.set(current + 0.1)
-            
+
             # Продолжаем анимацию через 200ms
             self.after(200, self._animate_progress)
 
@@ -801,10 +871,12 @@ class PointsGUI(ctk.CTk):
             # Загружаем данные о городах, если еще не загружены
             if self.city_data is None:
                 self.city_data = CityData(self.settings.cityDataFile, self.log_message)
-            
+
             # Загружаем данные о точках, если еще не загружены
             if self.points_data is None:
-                self.points_data = PointsData(self.settings.mainDataCSV, self.log_message)
+                self.points_data = PointsData(
+                    self.settings.mainDataCSV, self.log_message
+                )
 
             # Создаем callback для обновления статуса
             def update_status(message):
@@ -816,12 +888,12 @@ class PointsGUI(ctk.CTk):
                 self.points_data,
                 self.settings,
                 self.log_message,
-                status_callback=update_status
+                status_callback=update_status,
             )
-            
+
             # Используем after для безопасного обновления GUI из потока
             self.after(0, self._processing_completed)
-            
+
         except Exception as e:
             # Используем after для безопасного обновления GUI из потока
             self.after(0, lambda e=e: self._processing_error(str(e)))
