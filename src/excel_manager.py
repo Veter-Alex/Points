@@ -1,15 +1,19 @@
+
 """
 Модуль для работы с Excel файлами.
-Содержит функции сохранения данных о точках в формате Excel с форматированием.
+
+Содержит функции для сохранения данных о точках в формате Excel и CSV с форматированием.
+Все функции снабжены подробными комментариями и докстрингами согласно лучшим практикам.
 """
 
 import os
 from typing import List
 
-import pandas as pd
+import pandas as pd  # type: ignore
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from models.points import PointRecord
+
 
 
 def save_points_without_city_to_csv(
@@ -19,136 +23,62 @@ def save_points_without_city_to_csv(
     Сохраняет список точек без города в CSV-файл.
 
     Args:
-        points (List[PointRecord]): Список точек без города
-        csv_path (str): Путь к CSV-файлу
-        log_message: Функция для логирования
+        points (List[PointRecord]): Список точек без города.
+        csv_path (str): Путь к CSV-файлу для сохранения.
+        log_message (callable, optional): Функция для логирования.
 
     Returns:
-        bool: True если успешно, False если ошибка
+        bool: True если сохранение успешно, False если произошла ошибка.
     """
+    import csv
+    header = [
+        "Date", "Time", "Lat_WGS84", "Lon_WGS84", "X_SK-42_Gauss_Kruger", "Y_SK-42_Gauss_Kruger",
+        "Country_Value", "City_Value", "Description of the area", "Description of the region", "Original text", "File_Path"
+    ]
+    def point_key(p):
+        return (str(p.date), str(p.time), str(p.latitude), str(p.longitude))
     try:
-        import csv
-        import os
-
-        # Ключ для уникальности: (date, time, latitude, longitude)
-        def point_key(p):
-            return (str(p.date), str(p.time), str(p.latitude), str(p.longitude))
-
-        # Считываем уже существующие точки, если файл есть
+        # Чтение существующих точек
         existing_keys = set()
         existing_rows = []
         if os.path.exists(csv_path):
             with open(csv_path, "r", encoding="utf-8", newline="") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    key = (
-                        row.get("Date", ""),
-                        row.get("Time", ""),
-                        row.get("Lat_WGS84", ""),
-                        row.get("Lon_WGS84", ""),
-                        row.get("X_SK-42_Gauss_Kruger", ""),
-                        row.get("Y_SK-42_Gauss_Kruger", ""),
-                        row.get("Country_Value", ""),
-                        row.get("City_Value", ""),
-                        row.get("Description of the area", ""),
-                        row.get("Description of the region", ""),
-                        row.get("Original text", ""),
-                        row.get("File_Path", ""),
-                    )
+                    key = (row.get("Date", ""), row.get("Time", ""), row.get("Lat_WGS84", ""), row.get("Lon_WGS84", ""))
                     existing_keys.add(key)
                     existing_rows.append(row)
-
-        # Собираем новые уникальные точки
+        # Новые уникальные точки
         new_rows = []
         for p in points:
             key = point_key(p)
             if key not in existing_keys:
-                new_rows.append(
-                    {
-                        "Date": p.date,
-                        "Time": p.time,
-                        "Lat_WGS84": p.latitude,
-                        "Lon_WGS84": p.longitude,
-                        "X_SK-42_Gauss_Kruger": p.x_sk42,
-                        "Y_SK-42_Gauss_Kruger": p.y_sk42,
-                        "Country_Value": getattr(p, "country", ""),
-                        "City_Value": getattr(p, "city", ""),
-                        "Description of the area": getattr(p, "area_desc", ""),
-                        "Description of the region": getattr(p, "region_desc", ""),
-                        "Original text": getattr(p, "original_text", ""),
-                        "File_Path": getattr(p, "file_path", ""),
-                    }
-                )
+                new_rows.append({
+                    "Date": p.date,
+                    "Time": p.time,
+                    "Lat_WGS84": p.latitude,
+                    "Lon_WGS84": p.longitude,
+                    "X_SK-42_Gauss_Kruger": p.x_sk42,
+                    "Y_SK-42_Gauss_Kruger": p.y_sk42,
+                    "Country_Value": getattr(p, "country", ""),
+                    "City_Value": getattr(p, "city", ""),
+                    "Description of the area": getattr(p, "area_desc", ""),
+                    "Description of the region": getattr(p, "region_desc", ""),
+                    "Original text": getattr(p, "original_text", ""),
+                    "File_Path": getattr(p, "file_path", ""),
+                })
                 existing_keys.add(key)
-
-        header = [
-            "Date",
-            "Time",
-            "Lat_WGS84",
-            "Lon_WGS84",
-            "X_SK-42_Gauss_Kruger",
-            "Y_SK-42_Gauss_Kruger",
-            "Country_Value",
-            "City_Value",
-            "Description of the area",
-            "Description of the region",
-            "Original text",
-            "File_Path",
-        ]
-
         with open(csv_path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            # Сохраняем старые строки
-            for row in existing_rows:
-                writer.writerow(
-                    [
-                        row.get("Date", ""),
-                        row.get("Time", ""),
-                        row.get("Lat_WGS84", ""),
-                        row.get("Lon_WGS84", ""),
-                        row.get("X_SK-42_Gauss_Kruger", ""),
-                        row.get("Y_SK-42_Gauss_Kruger", ""),
-                        row.get("Country_Value", ""),
-                        row.get("City_Value", ""),
-                        row.get("Description of the area", ""),
-                        row.get("Description of the region", ""),
-                        row.get("Original text", ""),
-                        row.get("File_Path", ""),
-                    ]
-                )
-            # Сохраняем новые строки
-            for row in new_rows:
-                writer.writerow(
-                    [
-                        row.get("Date", ""),
-                        row.get("Time", ""),
-                        row.get("Lat_WGS84", ""),
-                        row.get("Lon_WGS84", ""),
-                        row.get("X_SK-42_Gauss_Kruger", ""),
-                        row.get("Y_SK-42_Gauss_Kruger", ""),
-                        row.get("Country_Value", ""),
-                        row.get("City_Value", ""),
-                        row.get("Description of the area", ""),
-                        row.get("Description of the region", ""),
-                        row.get("Original text", ""),
-                        row.get("File_Path", ""),
-                    ]
-                )
+            writer = csv.DictWriter(f, fieldnames=header)
+            writer.writeheader()
+            writer.writerows(existing_rows)
+            writer.writerows(new_rows)
         if log_message:
-            log_message(
-                f"Точки без города сохранены в {csv_path}",
-                color="blue",
-                logger_level="info",
-            )
+            log_message(f"Точки без города сохранены в {csv_path}", color="blue", logger_level="info")
         return True
     except Exception as e:
         if log_message:
-            log_message(
-                f"Ошибка при сохранении точек без города в CSV: {e}",
-                color="yellow",
-                logger_level="warning",
-            )
+            log_message(f"Ошибка при сохранении точек без города в CSV: {e}", color="orange", logger_level="warning")
         return False
 
 
@@ -159,12 +89,12 @@ def save_points_to_excel(
     Сохраняет список PointRecord в Excel с форматированием переносов строк.
 
     Args:
-        points_folder (List[PointRecord]): Список объектов PointRecord для сохранения
-        data_xlsx_path (str): Путь к файлу Excel для сохранения
-        log_message: Функция для логирования
+        points_folder (List[PointRecord]): Список объектов PointRecord для сохранения.
+        data_xlsx_path (str): Путь к файлу Excel для сохранения.
+        log_message (callable, optional): Функция для логирования.
 
     Returns:
-        bool: True если сохранение успешно, False если произошла ошибка
+        bool: True если сохранение успешно, False если произошла ошибка.
     """
     try:
         # Подготовка данных с нормализацией переносов строк и согласованными заголовками
@@ -274,13 +204,13 @@ def save_points_to_excel(
         if log_message:
             log_message(
                 f"Excel файл успешно сохранён: {data_xlsx_path}",
-                level="info",
+                logger_level="info",
                 color="blue",
             )
         return True
     except Exception as e:
         if log_message:
             log_message(
-                f"Ошибка при сохранении Excel: {e}", level="warning", color="yellow"
+                f"Ошибка при сохранении Excel: {e}", logger_level="warning", color="orange"
             )
         return False

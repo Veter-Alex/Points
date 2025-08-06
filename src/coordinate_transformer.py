@@ -1,3 +1,11 @@
+
+"""
+Модуль для преобразования координат между системами СК-42 (Gauss-Kruger) и WGS-84.
+
+Содержит класс CoordinateTransformer с методами для автоопределения зоны, настройки трансформера и преобразования координат.
+Все методы снабжены подробными комментариями и докстрингами согласно лучшим практикам.
+"""
+
 import logging
 import math
 from typing import Any, Dict, List, Optional, Tuple
@@ -5,12 +13,28 @@ from typing import Any, Dict, List, Optional, Tuple
 from pyproj import CRS, Transformer
 
 
+
+
 class CoordinateTransformer:
-    """Преобразование координат между системами (SK42 <-> WGS84)."""
+    """
+    Класс для преобразования координат между системами СК-42 (Gauss-Kruger) и WGS-84.
+
+    Позволяет автоматически определять зону СК-42, настраивать трансформер и выполнять преобразования координат.
+    Все методы снабжены подробными комментариями и докстрингами согласно лучшим практикам.
+    """
+
 
     def __init__(
         self, system: str = "SK42_GAUSS_KRUGER", zone: str = "AUTO", log_message=None
     ):
+        """
+        Инициализация трансформера координат.
+
+        Args:
+            system (str): Система координат ("SK42_GAUSS_KRUGER" или "WGS84").
+            zone (str): Зона СК-42 (номер или "AUTO" для автоопределения).
+            log_message (callable, optional): Функция для логирования.
+        """
         self.system = system
         self.zone = zone
         self._transformer: Any = None
@@ -19,7 +43,15 @@ class CoordinateTransformer:
         self._init_transformer()
 
     def _detect_zone_from_coordinates(self, lon: float) -> int:
-        """Определяет зону СК-42 по долготе (longitude)."""
+        """
+        Определяет номер зоны СК-42 по долготе (longitude).
+
+        Args:
+            lon (float): Долгота точки.
+
+        Returns:
+            int: Номер зоны СК-42.
+        """
         # СК-42 Гаусс-Крюгер: центральный меридиан = зона * 6 - 3
         # Зона 3: центр 15°E (12°-18°E)
         # Зона 4: центр 21°E (18°-24°E)
@@ -84,7 +116,15 @@ class CoordinateTransformer:
             return 28  # зона 28 (центр 165°E)
 
     def _get_epsg_for_zone(self, zone: int) -> int:
-        """Возвращает EPSG код для указанной зоны СК-42."""
+        """
+        Возвращает EPSG-код для указанной зоны СК-42.
+
+        Args:
+            zone (int): Номер зоны СК-42.
+
+        Returns:
+            int: EPSG-код для трансформации.
+        """
         # EPSG коды для зон СК-42 (Гаусс-Крюгер)
         zone_epsg = {
             1: 28401,  # СК-42 / Gauss-Kruger zone 1
@@ -119,7 +159,12 @@ class CoordinateTransformer:
         return zone_epsg.get(zone, 28407)  # По умолчанию зона 7
 
     def _init_transformer(self):
-        """Инициализация трансформера."""
+        """
+        Инициализация трансформера координат.
+
+        Если система WGS84 — трансформер не требуется.
+        Если зона AUTO — трансформер будет создан при первом преобразовании.
+        """
         if self.system == "WGS84":
             self._transformer = None
         else:
@@ -133,7 +178,12 @@ class CoordinateTransformer:
                 self._setup_transformer_for_zone(zone_num)
 
     def _setup_transformer_for_zone(self, zone: int):
-        """Настраивает трансформер для указанной зоны."""
+        """
+        Настраивает трансформер для указанной зоны СК-42.
+
+        Args:
+            zone (int): Номер зоны СК-42.
+        """
         try:
             epsg_code = self._get_epsg_for_zone(zone)
             sk42_crs = CRS.from_epsg(epsg_code)
@@ -169,11 +219,20 @@ class CoordinateTransformer:
                     logger_level="debug",
                 )
 
+
     def transform(
         self, latitude: float, longitude: float, to_wgs: bool = True
     ) -> Tuple[float, float]:
-        """Преобразование координат с автоопределением зоны для каждой точки.
-        На входе: latitude, longitude (широта, долгота) в WGS-84 или X, Y в СК-42.
+        """
+        Преобразует координаты между системами WGS-84 и СК-42 с автоопределением зоны.
+
+        Args:
+            latitude (float): Широта (или X в СК-42).
+            longitude (float): Долгота (или Y в СК-42).
+            to_wgs (bool): True — преобразовать из СК-42 в WGS-84, False — обратно.
+
+        Returns:
+            Tuple[float, float]: Преобразованные координаты (latitude, longitude).
         """
         if self.system == "WGS84":
             return (latitude, longitude)
@@ -181,43 +240,20 @@ class CoordinateTransformer:
         # Определяем зону для каждой точки отдельно
         if self.zone == "AUTO":
             if to_wgs:
-                # Для преобразования из СК-42 в WGS84
-                # latitude=X_SK42, longitude=Y_SK42
-                # Определяем зону по Y-координате
                 y_sk42 = longitude
-                # В СК-42 Y-координата имеет формат: зона*1000000 + 500000 + локальная_y
-                # Например: Y=22223252 означает зона 22, но это неверно
-                # Правильное определение: зона определяется из самой Y-координаты
-                if y_sk42 > 500000:
-                    # Для зон > 9: Y = (зона-1)*1000000 + 500000 + локальная_координата
-                    # Но проще использовать первую цифру Y как приблизительную зону
-                    zone_from_y = int(str(int(y_sk42))[0:2])  # Первые 2 цифры
-                    if zone_from_y >= 10 and zone_from_y <= 27:
-                        current_zone = zone_from_y
-                    else:
-                        # Попробуем первую цифру
-                        zone_from_y = int(str(int(y_sk42))[0])
-                        if zone_from_y >= 1 and zone_from_y <= 9:
-                            current_zone = zone_from_y
-                        else:
-                            current_zone = 21  # Зона по умолчанию для больших Y
-                else:
-                    current_zone = 7  # По умолчанию для небольших Y
-
-                # Специальная коррекция для известных проблемных случаев
-                if 22000000 <= y_sk42 < 23000000:  # Y начинается с 22
-                    current_zone = 21  # Это зона 21, а не 22
+                zone_str = str(int(y_sk42))
+                # Определяем зону по первым двум или одной цифре
+                zone_from_y = int(zone_str[:2]) if len(zone_str) > 6 else int(zone_str[0])
+                current_zone = zone_from_y if 1 <= zone_from_y <= 27 else 21
+                if y_sk42 < 500000:
+                    current_zone = 7
+                # Коррекция для известных случаев
+                if 22000000 <= y_sk42 < 23000000:
+                    current_zone = 21
             else:
-                # Для преобразования из WGS84 в СК-42
-                # latitude=lat_WGS84, longitude=lon_WGS84
                 current_zone = self._detect_zone_from_coordinates(longitude)
-
-            # Проверяем, нужно ли создать новый трансформер для этой зоны
-            if (
-                not hasattr(self, "current_zone")
-                or self.current_zone != current_zone
-                or self._transformer is None
-            ):
+            # Переключение трансформера при смене зоны
+            if self.current_zone != current_zone or self._transformer is None:
                 direction_str = "SK42->WGS" if to_wgs else "WGS->SK42"
                 if self.log_message:
                     self.log_message(

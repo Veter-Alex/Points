@@ -1,6 +1,9 @@
+
 """
 Модуль для парсинга XML и JSON файлов.
-Содержит функции безопасного парсинга с обработкой ошибок.
+
+Содержит функции для безопасного парсинга с обработкой ошибок и нормализацией данных.
+Все функции снабжены подробными комментариями и докстрингами согласно лучшим практикам.
 """
 
 import json
@@ -18,10 +21,10 @@ def safe_float(val: Optional[str]) -> Optional[float]:
     Безопасное преобразование строки в float.
 
     Args:
-        val (Optional[str]): Строка для преобразования
+        val (Optional[str]): Строка для преобразования.
 
     Returns:
-        Optional[float]: Число или None, если преобразование невозможно
+        Optional[float]: Число или None, если преобразование невозможно.
     """
     try:
         return float(val) if val is not None else None
@@ -29,16 +32,46 @@ def safe_float(val: Optional[str]) -> Optional[float]:
         return None
 
 
+
+def normalize_datetime(date_val: str, time_val: str) -> tuple[str, str]:
+    """
+    Приводит дату и время к формату DD.MM.YYYY и HH:MM:SS.
+
+    Args:
+        date_val (str): Исходная строка даты.
+        time_val (str): Исходная строка времени.
+
+    Returns:
+        tuple[str, str]: Кортеж нормализованных (дата, время).
+    """
+    try:
+        # Дата: YYYY-MM-DD -> DD.MM.YYYY, иначе как есть
+        if "-" in date_val:
+            parts = date_val.split("-")
+            normalized_date = f"{parts[2]}.{parts[1]}.{parts[0]}" if len(parts) == 3 else date_val
+        else:
+            normalized_date = date_val
+        # Время: HH:MM -> HH:MM:00, HH:MM:SS -> как есть
+        if time_val and ":" in time_val:
+            time_parts = time_val.split(":")
+            normalized_time = f"{time_parts[0]}:{time_parts[1]}:00" if len(time_parts) == 2 else time_val
+        else:
+            normalized_time = time_val if time_val else "00:00:00"
+        return normalized_date, normalized_time
+    except Exception:
+        return date_val, time_val
+
+
 def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
     """
     Универсальный парсер XML-файла с точкой.
 
     Args:
-        xml_path (str): Путь к XML файлу
-        log_message (callable, optional): Функция для логирования
+        xml_path (str): Путь к XML файлу.
+        log_message (callable, optional): Функция для логирования.
 
     Returns:
-        Optional[PointRecord]: Объект PointRecord или None, если данные невалидны
+        Optional[PointRecord]: Объект PointRecord или None, если данные невалидны.
     """
     if log_message:
         log_message(f"Начинаем обработку XML файла: {xml_path}")
@@ -69,6 +102,11 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
                 date_val, time_val = dt_val.split(" ", 1)
             elif dt_val:
                 date_val = dt_val
+            
+            # Нормализуем дату и время к единому формату
+            if date_val and time_val:
+                date_val, time_val = normalize_datetime(date_val, time_val)
+            
             latitude = safe_float(lat_val)
             longitude = safe_float(lon_val)
             if not (
@@ -129,6 +167,11 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
             else:
                 date_val = None
                 time_val = None
+            
+            # Нормализуем дату и время к единому формату
+            if date_val and time_val:
+                date_val, time_val = normalize_datetime(date_val, time_val)
+            
             latitude = safe_float(lat_val)
             longitude = safe_float(lon_val)
             if not (
@@ -168,6 +211,11 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
             date_val, time_val = None, None
             if lastupdate_val and "T" in lastupdate_val:
                 date_val, time_val = lastupdate_val.split("T", 1)
+            
+            # Нормализуем дату и время к единому формату
+            if date_val and time_val:
+                date_val, time_val = normalize_datetime(date_val, time_val)
+            
             latitude = safe_float(lat_val)
             longitude = safe_float(lon_val)
             if not (
@@ -210,11 +258,11 @@ def parse_json(json_path: str, log_message=None) -> Optional[PointRecord]:
     Поддерживает различные форматы JSON от разных сервисов геолокации.
 
     Args:
-        json_path (str): Путь к JSON файлу
-        log_message (callable, optional): Функция для логирования
+        json_path (str): Путь к JSON файлу.
+        log_message (callable, optional): Функция для логирования.
 
     Returns:
-        Optional[PointRecord]: Объект PointRecord или None, если данные невалидны
+        Optional[PointRecord]: Объект PointRecord или None, если данные невалидны.
     """
     if log_message:
         log_message(f"Начинаем обработку JSON файла: {json_path}")
@@ -230,6 +278,47 @@ def parse_json(json_path: str, log_message=None) -> Optional[PointRecord]:
         country = None
         date_val = None
         time_val = None
+
+        # WorldWeatherOnline format
+        if "data" in data and isinstance(data["data"], dict):
+            wwo_data = data["data"]
+            try:
+                area = wwo_data["nearest_area"][0]
+                tz = wwo_data["time_zone"][0]
+                latitude = safe_float(area["latitude"])
+                longitude = safe_float(area["longitude"])
+                city = area["areaName"][0]["value"]
+                country = area["country"][0]["value"]
+                localtime = tz["localtime"]  # "2024-08-26 10:27"
+                if " " in localtime:
+                    date_val, time_val = localtime.split(" ", 1)
+                else:
+                    date_val = localtime
+                
+                # Нормализуем дату и время к единому формату
+                if date_val and time_val:
+                    date_val, time_val = normalize_datetime(date_val, time_val)
+                
+                # Если всё найдено, возвращаем PointRecord
+                if latitude is not None and longitude is not None and date_val and time_val:
+                    return PointRecord(
+                        date=date_val,
+                        time=time_val,
+                        latitude=latitude,
+                        longitude=longitude,
+                        x_sk42=None,
+                        y_sk42=None,
+                        country=country,
+                        city=city,
+                        area_desc=None,
+                        region_desc=None,
+                        original_text=json_text,
+                        file_path=json_path,
+                    )
+            except Exception as e:
+                if log_message:
+                    log_message(f"Ошибка парсинга WorldWeatherOnline: {e}", color="red", logger_level="error")
+                # ...existing code...
 
         # Формат 1: IP-API (lat, lon)
         if "lat" in data and "lon" in data:
@@ -303,6 +392,10 @@ def parse_json(json_path: str, log_message=None) -> Optional[PointRecord]:
             latitude is not None and longitude is not None and date_val and time_val
         ):
             raise ValueError("Нет обязательных данных (lat/lon/date/time)")
+
+        # Нормализуем дату и время к единому формату
+        if date_val and time_val:
+            date_val, time_val = normalize_datetime(date_val, time_val)
 
         return PointRecord(
             date=date_val if date_val is not None else "",

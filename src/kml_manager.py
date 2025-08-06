@@ -6,31 +6,28 @@ from models.points import PointRecord
 def create_kml_file(point: PointRecord, kml_file_path: str, log_message=None) -> bool:
     """
     Создает KML файл для точки с иерархической структурой папок по дате и времени.
+
     Args:
-        point: PointRecord - объект точки для создания KML
-        kml_file_path: str - путь к файлу KML для сохранения
+        point (PointRecord): Точка для экспорта в KML.
+        kml_file_path (str): Путь для сохранения KML-файла.
+        log_message (callable, optional): Функция для логирования.
+
     Returns:
-        bool: True если создание успешно, False если произошла ошибка
+        bool: True если файл успешно создан, False при ошибке.
     """
     try:
         # Поддержка форматов '2024.11.22' и '2024-11-22'
         date_str = point.date.replace("-", ".")
         date_parts = date_str.split(".")
         time_parts = point.time.split(":")
-        if len(date_parts) >= 3 and len(time_parts) >= 2:
-            day = date_parts[0]
-            month = date_parts[1]
-            year = date_parts[2]
-            hour = time_parts[0]
-            minute = time_parts[1]
-        else:
+        # Проверяем корректность даты и времени
+        if len(date_parts) < 3 or len(time_parts) < 2:
             if log_message:
-                log_message(
-                    f"Неверный формат даты/времени: {point.date} {point.time}",
-                    level="warning",
-                    color="yellow",
-                )
+                log_message(f"Неверный формат даты/времени: {point.date} {point.time}", logger_level="warning", color="orange")
             return False
+        day, month, year = date_parts[0], date_parts[1], date_parts[2]
+        hour, minute = time_parts[0], time_parts[1]
+        # Формируем содержимое KML-файла с вложенной структурой по дате
         kml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://earth.google.com/kml/2.2">
   <Document>
@@ -94,19 +91,21 @@ Longitude_SK42_Gauss_Kruger - {point.y_sk42 or 'N/A'}</description>
   </Document>
 </kml>
 """
+        # Создаем директорию для файла, если нужно
         os.makedirs(os.path.dirname(kml_file_path), exist_ok=True)
+        # Записываем KML-файл
         with open(kml_file_path, "w", encoding="utf-8") as f:
             f.write(kml_content)
         if log_message:
             log_message(
-                f"KML файл успешно создан: {kml_file_path}", level="info", color="blue"
+                f"KML файл успешно создан: {kml_file_path}", logger_level="info", color="blue"
             )
         return True
     except Exception as e:
         if log_message:
             log_message(
                 f"Ошибка при создании KML файла {kml_file_path}: {e}",
-                level="error",
+                logger_level="error",
                 color="red",
             )
         return False

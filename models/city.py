@@ -1,15 +1,35 @@
+
+"""
+Модуль для работы с городами и их данными.
+
+Содержит классы и функции для загрузки, сохранения, парсинга и управления данными о городах.
+Все классы и методы снабжены подробными комментариями и докстрингами согласно лучшим практикам.
+"""
+
 import os
-import re
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 
 from .city_template import CITY_TXT_TEMPLATE
 
 
+
 @dataclass
 class CityRecord:
+    """
+    Структура для хранения информации о городе.
+
+    Args:
+        name_original (str): Оригинальное название города.
+        name_ru (str): Русское название города.
+        latitude (float): Широта города.
+        longitude (float): Долгота города.
+        country (Optional[str]): Страна.
+        description (Optional[str]): Описание.
+        region (Optional[str]): Регион.
+    """
     name_original: str
     name_ru: str
     latitude: float
@@ -19,10 +39,21 @@ class CityRecord:
     region: Optional[str] = None
 
 
+
 class CityData:
+    """
+    Класс для управления данными о городах.
+
+    Позволяет загружать, сохранять, парсить и управлять списком городов.
+    Все методы снабжены подробными комментариями и докстрингами.
+    """
     def __init__(self, filepath: str, log_message):
         """
         Инициализация CityData: путь к файлу, автосоздание и автозагрузка данных.
+
+        Args:
+            filepath (str): Путь к файлу данных о городах.
+            log_message (callable): Функция для логирования.
         """
         self.filepath = filepath
         self.log_message = log_message
@@ -67,7 +98,9 @@ class CityData:
 
     def load(self):
         """
-        Загружает данные из файла. При ошибке логирует и выбрасывает исключение.
+        Загружает данные из файла.
+
+        При ошибке логирует и выбрасывает исключение.
         Пропускает строки без символа '=' (например, разделители и комментарии).
         """
         self.records = []
@@ -109,8 +142,15 @@ class CityData:
     def parse_line(line: str) -> Optional[CityRecord]:
         """
         Парсинг строки с обработкой ошибок и логированием.
-        Формат: <Оригинальное_название>=<Русское_название>_<широта>_<долгота>_<страна>_<описание>_<регион>
-        Возвращает CityRecord или выбрасывает ValueError при ошибке.
+
+        Формат строки:
+            <Оригинальное_название>=<Русское_название>_<широта>_<долгота>_<страна>_<описание>_<регион>
+
+        Args:
+            line (str): Строка для парсинга.
+
+        Returns:
+            Optional[CityRecord]: Объект CityRecord или выбрасывает ValueError при ошибке.
         """
         try:
             name_original, rest = line.split("=", 1)
@@ -155,12 +195,24 @@ class CityData:
     def get_by_country(self, country: str) -> List[CityRecord]:
         """
         Получить список городов по стране.
+
+        Args:
+            country (str): Название страны.
+
+        Returns:
+            List[CityRecord]: Список городов в указанной стране.
         """
         return [rec for rec in self.records if rec.country == country]
 
     def get_by_name(self, name: str) -> Optional[CityRecord]:
         """
         Получить город по оригинальному названию (без учёта регистра).
+
+        Args:
+            name (str): Оригинальное название города.
+
+        Returns:
+            Optional[CityRecord]: Найденный город или None.
         """
         name_lower = name.lower()
         for rec in self.records:
@@ -171,11 +223,14 @@ class CityData:
     def add_city(self, city: CityRecord):
         """
         Добавить город (только если нет дубликата по name_original), затем сохранить файл.
+
+        Args:
+            city (CityRecord): Город для добавления.
         """
         if self.get_by_name(city.name_original):
             self.log_message(
                 f"Город с оригинальным названием '{city.name_original}' уже существует!",
-                color="yellow",
+                color="orange",
                 logger_level="warning",
             )
             return
@@ -185,6 +240,7 @@ class CityData:
     def save_data_to_file(self):
         """
         Полная перезапись файла из актуальных данных с бэкапом.
+
         Сохраняет в формате: комментарии + отсортированные по алфавиту записи.
         """
         # Создаем бэкап перед сохранением
@@ -258,7 +314,15 @@ class CityData:
     def _city_to_line(city: CityRecord) -> str:
         """
         Безопасное формирование строки для записи города в файл.
-        Формат: <Оригинальное_название>=<Русское_название>_<широта>_<долгота>_<страна>_<описание>_<регион>
+
+        Формат:
+            <Оригинальное_название>=<Русское_название>_<широта>_<долгота>_<страна>_<описание>_<регион>
+
+        Args:
+            city (CityRecord): Город для сериализации.
+
+        Returns:
+            str: Строка для записи в файл.
         """
 
         def safe_value(value: Optional[str]) -> str:

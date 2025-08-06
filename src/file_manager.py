@@ -1,28 +1,39 @@
+
 """
 Модуль для работы с файлами и папками.
-Содержит функции поиска папок и файлов по различным критериям.
+
+Этот модуль содержит функции для поиска папок и файлов по различным критериям.
+Все функции снабжены подробными комментариями и докстрингами согласно лучшим практикам.
 """
+
 
 import os
 from typing import List
 
 
-def find_folders_missing_data_csv(rootFolder: str) -> List[str]:
+
+
+def find_folders_missing_data_csv(root_folder: str) -> List[str]:
     """
-    Находит все папки, в которых отсутствует файл data.xlsx.
+    Находит все папки, где присутствуют файлы формата XML или JSON, но отсутствует файл data.xlsx.
 
     Args:
-        rootFolder (str): Корневая папка для поиска
+        root_folder (str): Путь к корневой папке для поиска.
 
     Returns:
-        List[str]: Список путей к папкам без data.xlsx
+        List[str]: Список путей к найденным папкам.
+
+    Примечание:
+        Папки с именем 'bad' игнорируются.
     """
-    result: List[str] = []
-    for dirpath, dirnames, filenames in os.walk(rootFolder):
-        if os.path.basename(dirpath).lower() == "bad":
-            continue
-        has_xml_or_json = any(f.lower().endswith((".xml", ".json")) for f in filenames)
-        has_data_csv = any(f.lower() == "data.xlsx" for f in filenames)
-        if has_xml_or_json and not has_data_csv:
-            result.append(dirpath)
-    return result
+    # Проходим по всем папкам и файлам внутри root_folder
+    return [
+        dirpath
+        for dirpath, _, filenames in os.walk(root_folder)
+        # Исключаем папки 'bad'
+        if os.path.basename(dirpath).lower() != "bad"
+        # Проверяем наличие хотя бы одного xml или json файла
+        and any(f.lower().endswith((".xml", ".json")) for f in filenames)
+        # Проверяем отсутствие файла data.xlsx
+        and not any(f.lower() == "data.xlsx" for f in filenames)
+    ]

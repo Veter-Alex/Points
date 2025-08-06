@@ -1,17 +1,39 @@
+
+"""
+Модуль для работы с точками наблюдения и их хранением в CSV.
+
+Содержит классы и функции для загрузки, сохранения, поиска и резервного копирования точек.
+Все классы и методы снабжены подробными комментариями и докстрингами согласно лучшим практикам.
+"""
+
 import csv
 import os
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Callable
+
 
 
 @dataclass
 class PointRecord:
     """
     Класс для хранения одной точки наблюдения.
-    """
 
+    Args:
+        date (str): Дата наблюдения.
+        time (str): Время наблюдения.
+        latitude (float): Широта.
+        longitude (float): Долгота.
+        x_sk42 (Optional[int]): X в системе СК-42.
+        y_sk42 (Optional[int]): Y в системе СК-42.
+        country (Optional[str]): Страна.
+        city (Optional[str]): Город.
+        area_desc (Optional[str]): Описание района.
+        region_desc (Optional[str]): Описание региона.
+        original_text (str): Исходный текст.
+        file_path (Optional[str]): Путь к исходному файлу.
+    """
     date: str
     time: str
     latitude: float
@@ -26,10 +48,14 @@ class PointRecord:
     file_path: Optional[str] = None
 
 
+
+
 class PointsData:
     """
     Класс для работы с данными из AllPoint.csv.
+
     Автоматически загружает данные при создании экземпляра.
+    Предоставляет методы для поиска, добавления, сохранения и резервного копирования точек.
     """
 
     FIELD_NAMES = [
@@ -47,9 +73,13 @@ class PointsData:
         "File_Path",
     ]
 
-    def __init__(self, filepath: str, log_message):
+    def __init__(self, filepath: str, log_message: Callable[..., None]):
         """
         Инициализация PointsData: загрузка данных и создание файла при необходимости.
+
+        Args:
+            filepath (str): Путь к файлу данных точек.
+            log_message (Callable): Функция для логирования.
         """
         self.filepath = filepath
         self.log_message = log_message
@@ -58,7 +88,7 @@ class PointsData:
         self.create_file_if_not_exists()
         self.load()
 
-    def create_file_if_not_exists(self):
+    def create_file_if_not_exists(self) -> None:
         """
         Создать CSV-файл с заголовками, если он отсутствует.
         """
@@ -94,7 +124,7 @@ class PointsData:
                 f"Файл создан: {self.filepath}", color="blue", logger_level="info"
             )
 
-    def load(self):
+    def load(self) -> None:
         """
         Загрузить данные из файла с обработкой ошибок и логированием.
         """
@@ -122,7 +152,7 @@ class PointsData:
                         except Exception as e:
                             self.log_message(
                                 f"Ошибка преобразования X_SK-42_Gauss_Kruger в строке {i}: {x_sk42_raw} — {e}",
-                                color="yellow",
+                                color="orange",
                                 logger_level="warning",
                             )
                             x_sk42 = None
@@ -135,7 +165,7 @@ class PointsData:
                         except Exception as e:
                             self.log_message(
                                 f"Ошибка преобразования Y_SK-42_Gauss_Kruger в строке {i}: {y_sk42_raw} — {e}",
-                                color="yellow",
+                                color="orange",
                                 logger_level="warning",
                             )
                             y_sk42 = None
@@ -175,7 +205,7 @@ class PointsData:
         except FileNotFoundError:
             self.log_message(
                 f"Файл {self.filepath} не найден, создан новый",
-                color="yellow",
+                color="orange",
                 logger_level="warning",
             )
             self.create_file_if_not_exists()
@@ -191,18 +221,28 @@ class PointsData:
             logger_level="info",
         )
 
-    def find_by_lat_lon(
-        self, latitude: float, longitude: float
-    ) -> Optional[PointRecord]:
+    def find_by_lat_lon(self, latitude: float, longitude: float) -> Optional[PointRecord]:
         """
         Поиск точки по точным координатам (без округления).
+
+        Args:
+            latitude (float): Широта.
+            longitude (float): Долгота.
+
+        Returns:
+            Optional[PointRecord]: Найденная точка или None.
         """
         return self.index.get((latitude, longitude))
 
     def add_point(self, point: PointRecord) -> bool:
         """
         Добавить новую точку (дубликат — совпадение по дате, времени и координатам).
-        Возвращает True, если точка добавлена, иначе False.
+
+        Args:
+            point (PointRecord): Точка для добавления.
+
+        Returns:
+            bool: True, если точка добавлена, иначе False.
         """
         for p in self.points:
             if (
@@ -213,7 +253,7 @@ class PointsData:
             ):
                 self.log_message(
                     f"Дубликат: точка с координатами ({point.latitude}, {point.longitude}) и датой/временем {point.date} {point.time} уже существует!",
-                    color="yellow",
+                    color="orange",
                     logger_level="warning",
                 )
                 return False
@@ -221,7 +261,7 @@ class PointsData:
         self.index[(point.latitude, point.longitude)] = point
         return True
 
-    def save(self):
+    def save(self) -> None:
         """
         Сохранить все точки в файл с созданием бэкапа.
         """
@@ -251,7 +291,7 @@ class PointsData:
                     }
                 )
 
-    def create_backup(self):
+    def create_backup(self) -> None:
         """
         Создать резервную копию файла (оставляет только 10 последних бэкапов).
         """
