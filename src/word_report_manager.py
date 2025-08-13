@@ -7,7 +7,7 @@
 """
 
 import os
-from typing import List
+from typing import List, Dict
 
 from models.points import PointRecord
 
@@ -129,7 +129,7 @@ def create_word_report(
             return "\n".join(formatted_lines)
 
         # --- Группировка точек России по регионам ---
-        russia_by_region: dict[str, list[PointRecord]] = {}
+        russia_by_region: Dict[str, List[PointRecord]] = {}
         for point in russia_points:
             region = (
                 point.region_desc
@@ -176,7 +176,7 @@ def create_word_report(
 
         # --- Формирование отчета по точкам других стран ---
         if other_points:
-            other_by_country: dict[str, list[PointRecord]] = {}
+            other_by_country: Dict[str, List[PointRecord]] = {}
             for point in other_points:
                 country = point.country or "Неизвестная страна"
                 if country not in other_by_country:

@@ -12,6 +12,23 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pyproj import CRS, Transformer
 
+# Глобальный кэш трансформеров для ускорения работы
+_TRANSFORMER_CACHE: Dict[int, Transformer] = {}
+
+
+def clear_transformer_cache():
+    """Очистить кэш трансформеров координат."""
+    global _TRANSFORMER_CACHE
+    _TRANSFORMER_CACHE.clear()
+
+
+def get_transformer_cache_stats() -> Dict[str, int]:
+    """Получить статистику использования кэша трансформеров."""
+    return {
+        "transformer_cache_size": len(_TRANSFORMER_CACHE),
+        "cached_zones": list(_TRANSFORMER_CACHE.keys())
+    }
+
 
 
 
@@ -179,22 +196,38 @@ class CoordinateTransformer:
 
     def _setup_transformer_for_zone(self, zone: int):
         """
-        Настраивает трансформер для указанной зоны СК-42.
+        Настраивает трансформер для указанной зоны СК-42 с использованием кэша.
 
         Args:
             zone (int): Номер зоны СК-42.
         """
+        # Проверяем кэш трансформеров
+        if zone in _TRANSFORMER_CACHE:
+            self._transformer = _TRANSFORMER_CACHE[zone]
+            if self.log_message:
+                self.log_message(
+                    f"Использован кэшированный трансформер для СК-42 зона {zone}",
+                    color="green",
+                    logger_level="debug",
+                )
+            return
+
         try:
             epsg_code = self._get_epsg_for_zone(zone)
             sk42_crs = CRS.from_epsg(epsg_code)
             wgs84_crs = CRS.from_epsg(4326)
 
-            self._transformer = Transformer.from_crs(
+            transformer = Transformer.from_crs(
                 sk42_crs, wgs84_crs, always_xy=True
             )
+
+            # Сохраняем в кэш и используем
+            _TRANSFORMER_CACHE[zone] = transformer
+            self._transformer = transformer
+
             if self.log_message:
                 self.log_message(
-                    f"Создан трансформер для СК-42 зона {zone} (EPSG:{epsg_code})",
+                    f"Создан и кэширован трансформер для СК-42 зона {zone} (EPSG:{epsg_code})",
                     color="blue",
                     logger_level="debug",
                 )
@@ -209,12 +242,17 @@ class CoordinateTransformer:
             # Fallback к proj4 строке для зоны 7
             sk42_proj4 = "+proj=tmerc +lat_0=0 +lon_0=39 +k=1 +x_0=7500000 +y_0=0 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs"
 
-            self._transformer = Transformer.from_crs(
+            transformer = Transformer.from_crs(
                 CRS.from_proj4(sk42_proj4), CRS.from_epsg(4326), always_xy=True
             )
+
+            # Кэшируем fallback-трансформер
+            _TRANSFORMER_CACHE[zone] = transformer
+            self._transformer = transformer
+
             if self.log_message:
                 self.log_message(
-                    "Создан трансформер через proj4 (зона 7 по умолчанию)",
+                    "Создан и кэширован трансформер через proj4 (зона 7 по умолчанию)",
                     color="blue",
                     logger_level="debug",
                 )

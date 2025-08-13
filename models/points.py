@@ -127,6 +127,7 @@ class PointsData:
     def load(self) -> None:
         """
         Загрузить данные из файла с обработкой ошибок и логированием.
+        Оптимизированная версия для быстрой загрузки больших файлов.
         """
         self.log_message(
             f"Загрузка данных из {self.filepath}", color="blue", logger_level="info"
@@ -134,74 +135,76 @@ class PointsData:
 
         self.points.clear()
         self.index.clear()
+
+        # Функции для быстрого преобразования типов
+        def safe_int_from_float(value: str) -> Optional[int]:
+            try:
+                return int(float(value)) if value and value.strip() else None
+            except (ValueError, TypeError):
+                return None
+
+        def safe_float(value: str) -> float:
+            try:
+                return float(value) if value else 0.0
+            except (ValueError, TypeError):
+                return 0.0
+
         try:
             with open(self.filepath, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
+                points_batch = []
+
                 for i, row in enumerate(reader, 1):
                     try:
+                        # Ускоренное извлечение координат
                         lat_str = (row.get("Lat_WGS84") or "").replace('"', "")
                         lon_str = (row.get("Lon_WGS84") or "").replace('"', "")
-                        x_sk42_raw = row.get("X_SK-42_Gauss_Kruger")
-                        y_sk42_raw = row.get("Y_SK-42_Gauss_Kruger")
-                        try:
-                            x_sk42 = (
-                                int(float(x_sk42_raw))
-                                if x_sk42_raw and x_sk42_raw.strip()
-                                else None
-                            )
-                        except Exception as e:
-                            self.log_message(
-                                f"Ошибка преобразования X_SK-42_Gauss_Kruger в строке {i}: {x_sk42_raw} — {e}",
-                                color="orange",
-                                logger_level="warning",
-                            )
-                            x_sk42 = None
-                        try:
-                            y_sk42 = (
-                                int(float(y_sk42_raw))
-                                if y_sk42_raw and y_sk42_raw.strip()
-                                else None
-                            )
-                        except Exception as e:
-                            self.log_message(
-                                f"Ошибка преобразования Y_SK-42_Gauss_Kruger в строке {i}: {y_sk42_raw} — {e}",
-                                color="orange",
-                                logger_level="warning",
-                            )
-                            y_sk42 = None
-                        area_desc = (
-                            row.get("Description of the area")
-                            if "Description of the area" in row
-                            else None
-                        )
-                        region_desc = (
-                            row.get("Description of the region")
-                            if "Description of the region" in row
-                            else None
-                        )
-                        file_path = row.get("File_Path", None)
+
+                        latitude = safe_float(lat_str)
+                        longitude = safe_float(lon_str)
+
+                        # Ускоренное преобразование СК-42 координат
+                        x_sk42 = safe_int_from_float(row.get("X_SK-42_Gauss_Kruger", ""))
+                        y_sk42 = safe_int_from_float(row.get("Y_SK-42_Gauss_Kruger", ""))
+
+                        # Быстрое извлечение остальных полей
                         point = PointRecord(
                             date=row.get("Data", ""),
                             time=row.get("Time", ""),
-                            latitude=float(lat_str) if lat_str else 0.0,
-                            longitude=float(lon_str) if lon_str else 0.0,
+                            latitude=latitude,
+                            longitude=longitude,
                             x_sk42=x_sk42,
                             y_sk42=y_sk42,
                             country=row.get("Country_Value", ""),
                             city=row.get("City_Value", ""),
-                            area_desc=area_desc,
-                            region_desc=region_desc,
+                            area_desc=row.get("Description of the area"),
+                            region_desc=row.get("Description of the region"),
                             original_text=row.get("Original text", ""),
-                            file_path=file_path,
+                            file_path=row.get("File_Path"),
                         )
-                        self.points.append(point)
-                        self.index[(point.latitude, point.longitude)] = point
+
+                        points_batch.append(point)
+
+                        # Обрабатываем батчами для лучшей производительности
+                        if len(points_batch) >= 1000:
+                            self.points.extend(points_batch)
+                            for p in points_batch:
+                                self.index[(p.latitude, p.longitude)] = p
+                            points_batch.clear()
+
                     except Exception as e:
                         self.log_message(
-                            f"Ошибка в строке {i}: {str(e)}; row={row}",
+                            f"Ошибка в строке {i}: {str(e)}",
                             color="red",
                             logger_level="error",
                         )
+
+                # Добавляем оставшиеся точки
+                if points_batch:
+                    self.points.extend(points_batch)
+                    for p in points_batch:
+                        self.index[(p.latitude, p.longitude)] = p
+
         except FileNotFoundError:
             self.log_message(
                 f"Файл {self.filepath} не найден, создан новый",
@@ -215,6 +218,7 @@ class PointsData:
                 color="red",
                 logger_level="critical",
             )
+
         self.log_message(
             f"Загружено {len(self.points)} точек из {self.filepath}",
             color="blue",
@@ -264,32 +268,61 @@ class PointsData:
     def save(self) -> None:
         """
         Сохранить все точки в файл с созданием бэкапа.
+        Перед сохранением удаляет дубликаты эффективным способом.
         """
         self.create_backup()
+
+        # Эффективная дедупликация с сохранением порядка
+        seen_keys = set()
+        unique_points = []
+
+        for p in self.points:
+            # Ключ для определения уникальности: координаты + дата + время
+            key = (p.latitude, p.longitude, p.date, p.time)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                unique_points.append(p)
+
+        # Логируем информацию о дубликатах, если они были найдены
+        duplicates_count = len(self.points) - len(unique_points)
+        if duplicates_count > 0:
+            self.log_message(
+                f"Обнаружено и удалено {duplicates_count} дубликатов перед сохранением",
+                color="orange",
+                logger_level="warning",
+            )
+
+        # Обновляем внутренний список и перестраиваем индекс одним проходом
+        self.points = unique_points
+        self.index = {(p.latitude, p.longitude): p for p in unique_points}
+
+        # Подготавливаем данные для записи (избегаем повторных обращений к атрибутам)
+        rows_data = []
+        for p in unique_points:
+            rows_data.append({
+                "Data": p.date,
+                "Time": p.time,
+                "Lat_WGS84": f"{p.latitude:.6f}",
+                "Lon_WGS84": f"{p.longitude:.6f}",
+                "X_SK-42_Gauss_Kruger": (
+                    p.x_sk42 if p.x_sk42 is not None else ""
+                ),
+                "Y_SK-42_Gauss_Kruger": (
+                    p.y_sk42 if p.y_sk42 is not None else ""
+                ),
+                "Country_Value": p.country,
+                "City_Value": p.city,
+                "Description of the area": p.area_desc or "",
+                "Description of the region": p.region_desc or "",
+                "Original text": p.original_text,
+                "File_Path": p.file_path or "",
+            })
+
+        # Записываем в файл одним блоком
         with open(self.filepath, "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=self.FIELD_NAMES)
             writer.writeheader()
-            for p in self.points:
-                writer.writerow(
-                    {
-                        "Data": p.date,
-                        "Time": p.time,
-                        "Lat_WGS84": f"{p.latitude:.6f}",
-                        "Lon_WGS84": f"{p.longitude:.6f}",
-                        "X_SK-42_Gauss_Kruger": (
-                            p.x_sk42 if p.x_sk42 is not None else ""
-                        ),
-                        "Y_SK-42_Gauss_Kruger": (
-                            p.y_sk42 if p.y_sk42 is not None else ""
-                        ),
-                        "Country_Value": p.country,
-                        "City_Value": p.city,
-                        "Description of the area": p.area_desc or "",
-                        "Description of the region": p.region_desc or "",
-                        "Original text": p.original_text,
-                        "File_Path": p.file_path or "",
-                    }
-                )
+            writer.writerows(rows_data)
 
     def create_backup(self) -> None:
         """

@@ -12,13 +12,16 @@
 import math
 import os
 import sys
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 
 import geopandas as gpd  # type: ignore
 from shapely.geometry import Point  # type: ignore
 
 # Глобальный кэш для GeoDataFrame со странами мира
 _WORLD_GDF: Optional[gpd.GeoDataFrame] = None
+
+# Кэш для результатов поиска стран по координатам
+_COUNTRY_CACHE: Dict[Tuple[float, float], Tuple[str, str]] = {}
 
 
 def resource_path(relative_path):
@@ -42,11 +45,17 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
     Returns:
         Tuple[str, str]: Кортеж (английское название, русское название страны).
     """
+    # Кэшируем результаты с точностью до 3 знаков после запятой
+    cache_key = (round(lat, 3), round(lon, 3))
+    if cache_key in _COUNTRY_CACHE:
+        return _COUNTRY_CACHE[cache_key]
+
     global _WORLD_GDF
     if _WORLD_GDF is None:
         # Загружаем геоданные стран из geojson при первом вызове
         geojson_path = resource_path("src/countries.geojson")
         _WORLD_GDF = gpd.read_file(geojson_path)
+
     point = Point(lon, lat)
     # Ищем страну по точному попаданию точки в геометрию
     matches = _WORLD_GDF[_WORLD_GDF["geometry"].contains(point)]
@@ -247,7 +256,26 @@ def get_country_by_lat_lon(lat: float, lon: float) -> Tuple[str, str]:
         "Tuvalu": "Тувалу",
     }
     country_rus = country_translate.get(country_eng, country_eng)
-    return country_eng, country_rus
+
+    # Кэшируем результат для будущих запросов
+    result = (country_eng, country_rus)
+    _COUNTRY_CACHE[cache_key] = result
+
+    return result
+
+
+def clear_country_cache():
+    """Очистить кэш результатов поиска стран."""
+    global _COUNTRY_CACHE
+    _COUNTRY_CACHE.clear()
+
+
+def get_cache_stats() -> Dict[str, int]:
+    """Получить статистику использования кэшей."""
+    return {
+        "country_cache_size": len(_COUNTRY_CACHE),
+        "gdf_loaded": 1 if _WORLD_GDF is not None else 0
+    }
 
 
 def get_sk42_coordinates(

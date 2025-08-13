@@ -11,7 +11,7 @@ import os
 import shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 from models.points import PointRecord
 
@@ -33,7 +33,7 @@ def safe_float(val: Optional[str]) -> Optional[float]:
 
 
 
-def normalize_datetime(date_val: str, time_val: str) -> tuple[str, str]:
+def normalize_datetime(date_val: str, time_val: str) -> Tuple[str, str]:
     """
     Приводит дату и время к формату DD.MM.YYYY и HH:MM:SS.
 
@@ -42,7 +42,7 @@ def normalize_datetime(date_val: str, time_val: str) -> tuple[str, str]:
         time_val (str): Исходная строка времени.
 
     Returns:
-        tuple[str, str]: Кортеж нормализованных (дата, время).
+        Tuple[str, str]: Кортеж нормализованных (дата, время).
     """
     try:
         # Дата: YYYY-MM-DD -> DD.MM.YYYY, иначе как есть
@@ -102,11 +102,11 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
                 date_val, time_val = dt_val.split(" ", 1)
             elif dt_val:
                 date_val = dt_val
-            
+
             # Нормализуем дату и время к единому формату
             if date_val and time_val:
                 date_val, time_val = normalize_datetime(date_val, time_val)
-            
+
             latitude = safe_float(lat_val)
             longitude = safe_float(lon_val)
             if not (
@@ -167,11 +167,11 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
             else:
                 date_val = None
                 time_val = None
-            
+
             # Нормализуем дату и время к единому формату
             if date_val and time_val:
                 date_val, time_val = normalize_datetime(date_val, time_val)
-            
+
             latitude = safe_float(lat_val)
             longitude = safe_float(lon_val)
             if not (
@@ -211,11 +211,11 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
             date_val, time_val = None, None
             if lastupdate_val and "T" in lastupdate_val:
                 date_val, time_val = lastupdate_val.split("T", 1)
-            
+
             # Нормализуем дату и время к единому формату
             if date_val and time_val:
                 date_val, time_val = normalize_datetime(date_val, time_val)
-            
+
             latitude = safe_float(lat_val)
             longitude = safe_float(lon_val)
             if not (
@@ -294,11 +294,11 @@ def parse_json(json_path: str, log_message=None) -> Optional[PointRecord]:
                     date_val, time_val = localtime.split(" ", 1)
                 else:
                     date_val = localtime
-                
+
                 # Нормализуем дату и время к единому формату
                 if date_val and time_val:
                     date_val, time_val = normalize_datetime(date_val, time_val)
-                
+
                 # Если всё найдено, возвращаем PointRecord
                 if latitude is not None and longitude is not None and date_val and time_val:
                     return PointRecord(
