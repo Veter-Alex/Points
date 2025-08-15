@@ -26,7 +26,7 @@ def get_transformer_cache_stats() -> Dict[str, int]:
     """Получить статистику использования кэша трансформеров."""
     return {
         "transformer_cache_size": len(_TRANSFORMER_CACHE),
-        "cached_zones": list(_TRANSFORMER_CACHE.keys())
+        "cached_zones": len(_TRANSFORMER_CACHE.keys())
     }
 
 

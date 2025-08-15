@@ -197,5 +197,18 @@ def find_and_parse_files(
             save_points_without_city_to_csv(
                 points_to_edit_folder, points_to_edit_file, log_message
             )
+            
+            # Создаем KML файлы для точек без города
+            for point in points_to_edit_folder:
+                if point.file_path:
+                    base_name = os.path.splitext(os.path.basename(point.file_path))[0]
+                    kml_file_path = os.path.join(folder, f"{base_name}_without_city.kml")
+                else:
+                    kml_file_path = os.path.join(
+                        folder,
+                        f"point_without_city_{point.latitude}_{point.longitude}_{point.time.replace(':', '')}.kml",
+                    )
+                create_kml_file(point, kml_file_path, log_message)
+                log(f"Создан KML файл для точки без города: {kml_file_path}", color="orange")
     # Сохраняем все точки в основной базе
     points_data.save()

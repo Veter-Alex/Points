@@ -103,6 +103,19 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
             elif dt_val:
                 date_val = dt_val
 
+            # Если дата/время не найдены в файле, используем время создания файла
+            if not date_val or not time_val:
+                try:
+                    file_ctime = os.path.getctime(xml_path)
+                    dt_obj = datetime.fromtimestamp(file_ctime)
+                    if not date_val:
+                        date_val = dt_obj.strftime("%Y-%m-%d")
+                    if not time_val:
+                        time_val = dt_obj.strftime("%H:%M:%S")
+                except (OSError, ValueError):
+                    # Если не удалось получить время файла, оставляем пустые значения
+                    pass
+
             # Нормализуем дату и время к единому формату
             if date_val and time_val:
                 date_val, time_val = normalize_datetime(date_val, time_val)
@@ -168,6 +181,19 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
                 date_val = None
                 time_val = None
 
+            # Если дата/время не найдены в файле, используем время создания файла
+            if not date_val or not time_val:
+                try:
+                    file_ctime = os.path.getctime(xml_path)
+                    dt_obj = datetime.fromtimestamp(file_ctime)
+                    if not date_val:
+                        date_val = dt_obj.strftime("%Y-%m-%d")
+                    if not time_val:
+                        time_val = dt_obj.strftime("%H:%M:%S")
+                except (OSError, ValueError):
+                    # Если не удалось получить время файла, оставляем пустые значения
+                    pass
+
             # Нормализуем дату и время к единому формату
             if date_val and time_val:
                 date_val, time_val = normalize_datetime(date_val, time_val)
@@ -211,6 +237,19 @@ def parse_xml(xml_path: str, log_message=None) -> Optional[PointRecord]:
             date_val, time_val = None, None
             if lastupdate_val and "T" in lastupdate_val:
                 date_val, time_val = lastupdate_val.split("T", 1)
+
+            # Если дата/время не найдены в файле, используем время создания файла
+            if not date_val or not time_val:
+                try:
+                    file_ctime = os.path.getctime(xml_path)
+                    dt_obj = datetime.fromtimestamp(file_ctime)
+                    if not date_val:
+                        date_val = dt_obj.strftime("%Y-%m-%d")
+                    if not time_val:
+                        time_val = dt_obj.strftime("%H:%M:%S")
+                except (OSError, ValueError):
+                    # Если не удалось получить время файла, оставляем пустые значения
+                    pass
 
             # Нормализуем дату и время к единому формату
             if date_val and time_val:
@@ -386,6 +425,19 @@ def parse_json(json_path: str, log_message=None) -> Optional[PointRecord]:
                     time_val = dt_obj.strftime("%H:%M:%S")
                 except (ValueError, TypeError):
                     pass
+
+        # Если дата/время все еще не найдены, используем время создания файла
+        if not date_val or not time_val:
+            try:
+                file_ctime = os.path.getctime(json_path)
+                dt_obj = datetime.fromtimestamp(file_ctime)
+                if not date_val:
+                    date_val = dt_obj.strftime("%Y-%m-%d")
+                if not time_val:
+                    time_val = dt_obj.strftime("%H:%M:%S")
+            except (OSError, ValueError):
+                # Если не удалось получить время файла, оставляем пустые значения
+                pass
 
         # Проверяем обязательные данные (координаты, дата, время)
         if not (
