@@ -25,9 +25,11 @@
 
 #### 🔍 **Основные функции:**
 - **Автоматический парсинг** XML и JSON файлов с извлечением координат
+- **Интеллектуальное определение времени** — использует время создания файла если дата/время отсутствуют в содержимом
 - **Интеллектуальное управление** базой данных географических точек
 - **Автоматическое определение** стран и регионов по координатам
 - **Поиск и привязка** точек к ближайшим городам
+- **Обработка точек без города** — создание отдельных файлов CSV и KML
 - **Преобразование координат** между различными системами (WGS84 → СК-42)
 - **Генерация многоформатных отчетов** (Excel, Word, KML)
 - **Дедупликация данных** с автоматическим удалением повторов
@@ -354,6 +356,7 @@ def parse_json_file(file_path):
     """
     Извлекает данные из JSON файлов
     Поддерживает вложенные структуры
+    Автоматически определяет время из файла при отсутствии в данных
     """
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -361,8 +364,44 @@ def parse_json_file(file_path):
     # Гибкое извлечение координат
     latitude = extract_nested_value(data, ['coordinates.lat', 'location.latitude', 'lat'])
     longitude = extract_nested_value(data, ['coordinates.lon', 'location.longitude', 'lng'])
+    
+    # Поиск даты и времени в содержимом
+    datetime_str = extract_nested_value(data, ['datetime', 'timestamp', 'dt'])
+    
+    # Fallback на время создания файла если не найдено в содержимом
+    if not datetime_str:
+        try:
+            file_ctime = os.path.getctime(file_path)
+            dt_obj = datetime.fromtimestamp(file_ctime)
+            datetime_str = dt_obj.strftime("%Y-%m-%d %H:%M:%S")
+        except (OSError, ValueError):
+            datetime_str = None  # Остается пустым
 
-    return Point(latitude, longitude, city, datetime, file_path)
+    return Point(latitude, longitude, city, datetime_str, file_path)
+```
+
+#### ⏰ **Новый алгоритм определения даты и времени**
+
+**Приоритеты определения времени:**
+1. **Содержимое файла** — извлечение из XML/JSON структуры
+2. **Метаданные файла** — время создания файла (`os.path.getctime()`)
+3. **Пустое значение** — если метаданные недоступны
+
+```python
+def extract_datetime_with_fallback(file_path, parsed_datetime):
+    """
+    Умное определение даты и времени с fallback стратегией
+    """
+    if parsed_datetime:
+        return normalize_datetime(parsed_datetime)
+    
+    # Fallback на время создания файла
+    try:
+        file_ctime = os.path.getctime(file_path)
+        dt_obj = datetime.fromtimestamp(file_ctime)
+        return dt_obj.strftime("%Y-%m-%d"), dt_obj.strftime("%H:%M:%S")
+    except (OSError, ValueError):
+        return None, None  # Остается пустым для валидации
 ```
 
 #### 🎯 **Этап 5: Анализ и обогащение точек**
@@ -912,12 +951,18 @@ def parse_xml_coordinates(file_path):
 - Создается только при наличии точек без привязки к городу
 - Используется для ручной доработки данных
 - Промежуточный файл для последующей обработки
+- **Новое**: автоматически создаются соответствующие KML файлы с суффиксом `_without_city`
 
 #### **Структура файла**
 ```csv
 latitude,longitude,datetime,country,suggested_cities,file_path
 60.9344,76.5531,2025-08-14 10:30:00,Россия,"Нижневартовск;Сургут","/path/to/source.xml"
 ```
+
+#### **Дополнительные файлы для точек без города**
+- **CSV файл**: `points_without_city.csv` — табличные данные
+- **KML файлы**: `{оригинальное_имя}_without_city.kml` — для просмотра на карте
+- **Альтернативное именование**: `point_without_city_{lat}_{lon}_{time}.kml` если исходный файл неизвестен
 
 #### **Алгоритм предложения городов**
 ```python
