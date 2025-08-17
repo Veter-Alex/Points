@@ -7,7 +7,7 @@
 """
 
 import os
-from typing import List, Dict
+from typing import Dict, List
 
 from models.points import PointRecord
 
@@ -197,7 +197,7 @@ def create_word_report(
         if wrong_city_data_folder:
             doc.add_paragraph("")
             doc.add_paragraph(
-                "Города не найдены в city.txt. Требуется описание и повторный запуск обработки файлов директории (перед повторным запуском удалите data.xlsx в директории):"
+                "Города не найдены в city.txt. Требуется описание и повторный запуск обработки файлов директории (перед повторным запуском удалите data.xlsx и points_without_city.csv в директории):"
             )
             for city in wrong_city_data_folder:
                 add_normal_paragraph(city)

@@ -5,6 +5,7 @@
 Все классы и методы снабжены подробными комментариями и докстрингами согласно лучшим практикам.
 """
 
+
 import os
 import threading
 import tkinter as tk
@@ -13,6 +14,8 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk  # type: ignore
 
 from src.core import find_and_parse_files
+
+APP_VERSION = "v1.1.0"
 
 
 class TXTFileDialog(ctk.CTkToplevel):
@@ -260,7 +263,7 @@ class PointsGUI(ctk.CTk):
             logger: Объект логгера.
         """
         super().__init__()
-        self.title("PointsManager - Географические точки")
+        self.title(f"PointsManager {APP_VERSION} - Географические точки")
         self.geometry("1000x700")
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
@@ -522,28 +525,35 @@ class PointsGUI(ctk.CTk):
             "Ошибка очистки", f"Произошла ошибка при очистке:\n{error_message}"
         )
 
-    def show_help(self):
-        """Показать справку."""
-        try:
-            help_file = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), "help.md"
-            )
 
-            # Проверяем существование файла справки
-            if os.path.exists(help_file):
+    def show_help(self):
+        """Показать справку: сначала DOCX/DOC, иначе MD."""
+        try:
+            base_dir = os.path.dirname(os.path.dirname(__file__))
+            docx_file = os.path.join(base_dir, "help.docx")
+            doc_file = os.path.join(base_dir, "help.doc")
+            md_file = os.path.join(base_dir, "help.md")
+
+            help_file = None
+            if os.path.exists(docx_file):
+                help_file = docx_file
+            elif os.path.exists(doc_file):
+                help_file = doc_file
+            elif os.path.exists(md_file):
+                help_file = md_file
+
+            if help_file:
                 # Открываем файл справки в системном редакторе
                 if os.name == "nt":  # Windows
                     os.startfile(help_file)
                 else:  # Linux/Mac
-                    os.system(f"xdg-open {help_file}")
-
+                    os.system(f"xdg-open '{help_file}'")
                 self.log_message(f"Открыт файл справки: {help_file}", color="blue")
             else:
                 messagebox.showwarning(
-                    "Справка недоступна", f"Файл справки не найден:\n{help_file}"
+                    "Справка недоступна", "Файл справки не найден: help.docx/help.doc/help.md"
                 )
-                self.log_message(f"Файл справки не найден: {help_file}", color="orange")
-
+                self.log_message("Файл справки не найден: help.docx/help.doc/help.md", color="orange")
         except Exception as e:
             self.log_message(
                 f"Ошибка при открытии справки: {e}", color="red", logger_level="error"
