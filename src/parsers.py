@@ -148,6 +148,10 @@ class BaseParser(ABC):
         self.file_path = file_path
         self.log_message = log_message
         self.original_text = ""
+        
+        # Проверяем существование файла
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Файл не найден: {file_path}")
 
     def log(self, message: str, color: Optional[str] = None, logger_level: str = "info") -> None:
         """Логирование с проверкой наличия функции."""
@@ -245,6 +249,10 @@ class XMLParser(BaseParser):
 
     def _extract_data(self) -> Dict[str, Any]:
         """Извлекает данные из XML файла."""
+        # Дополнительная проверка существования файла на момент чтения
+        if not os.path.exists(self.file_path):
+            raise FileNotFoundError(f"Файл не найден: {self.file_path}")
+            
         with open(self.file_path, encoding="utf-8") as f_xml:
             self.original_text = f_xml.read()
 
@@ -547,6 +555,10 @@ class JSONParser(BaseParser):
 
     def _extract_data(self) -> Dict[str, Any]:
         """Извлекает данные из JSON файла."""
+        # Дополнительная проверка существования файла на момент чтения
+        if not os.path.exists(self.file_path):
+            raise FileNotFoundError(f"Файл не найден: {self.file_path}")
+            
         with open(self.file_path, encoding="utf-8") as f:
             self.original_text = f.read()
             data = json.loads(self.original_text)
@@ -834,6 +846,12 @@ def parse_xml_multiple_points(xml_path: str, log_message=None) -> List[PointReco
         List[PointRecord]: Список объектов PointRecord или пустой список.
     """
     try:
+        # Проверяем существование файла
+        if not os.path.exists(xml_path):
+            if log_message:
+                log_message(f"Файл не найден: {xml_path}", level="ERROR")
+            return []
+            
         with open(xml_path, encoding="utf-8") as f:
             content = f.read()
             
@@ -843,8 +861,14 @@ def parse_xml_multiple_points(xml_path: str, log_message=None) -> List[PointReco
         # Проверяем, что это формат document с items или HHForecast
         if root.tag != "document":
             # Если не document формат, возвращаем результат обычного парсера
-            result = parse_xml(xml_path, log_message)
-            return [result] if result else []
+            # Проверяем существование файла перед вызовом (может быть перемещен)
+            if os.path.exists(xml_path):
+                result = parse_xml(xml_path, log_message)
+                return [result] if result else []
+            else:
+                if log_message:
+                    log_message(f"Файл не найден при повторном обращении: {xml_path}", color="yellow", logger_level="warning")
+                return []
         
         # Проверяем наличие items (множественные точки)
         items = root.findall(".//item")
@@ -903,8 +927,14 @@ def parse_xml_multiple_points(xml_path: str, log_message=None) -> List[PointReco
             return points
         
         # Если нет items, возвращаем результат обычного парсера (включая HHForecast)
-        result = parse_xml(xml_path, log_message)
-        return [result] if result else []
+        # Проверяем существование файла перед вызовом (может быть перемещен)
+        if os.path.exists(xml_path):
+            result = parse_xml(xml_path, log_message)
+            return [result] if result else []
+        else:
+            if log_message:
+                log_message(f"Файл не найден при повторном обращении: {xml_path}", color="yellow", logger_level="warning")
+            return []
         
     except Exception as e:
         if log_message:

@@ -107,6 +107,11 @@ class FileProcessor(LoggingMixin):
         Returns:
             List[PointRecord]: Список точек (может быть пустым или содержать одну/несколько точек).
         """
+        # Проверяем существование файла перед началом обработки
+        if not os.path.exists(file_path):
+            self.log(f"Файл не найден (возможно, уже перемещен): {file_path}", color="yellow", logger_level="warning")
+            return []
+            
         file_name = os.path.basename(file_path)
         points = []
 
@@ -122,10 +127,14 @@ class FileProcessor(LoggingMixin):
             elif len(multiple_points) == 1:
                 points = multiple_points
             else:
-                # Если функция множественных точек не сработала, используем обычный парсер
-                single_point = parse_xml(file_path, self.log_message)
-                if single_point:
-                    points = [single_point]
+                # Проверяем, что файл еще существует перед вызовом обычного парсера
+                # (может быть перемещен в bad если parse_xml_multiple_points завершился с ошибкой)
+                if os.path.exists(file_path):
+                    single_point = parse_xml(file_path, self.log_message)
+                    if single_point:
+                        points = [single_point]
+                else:
+                    self.log(f"Файл {file_name} был перемещен во время обработки", color="yellow", logger_level="warning")
                     
         elif file_path.lower().endswith('.json'):
             self.log(f"Парсинг JSON: {file_name}")
@@ -251,12 +260,18 @@ class ReportGenerator(LoggingMixin):
 
     def create_word_report(self, points: List[PointRecord], wrong_cities: List[str], folder: str) -> None:
         """Создание Word отчета."""
+        self.log(f"Создание Word отчета: points={len(points)}, wrong_cities={len(wrong_cities)}", color="cyan", logger_level="debug")
+        
         if not (points or wrong_cities):
+            self.log("Word отчет не создан: нет точек и неизвестных городов", color="yellow", logger_level="warning")
             return
 
         report_path = os.path.join(folder, "report.docx")
-        create_word_report(points, wrong_cities, report_path, self.log_message)
-        self.log(f"Создан Word отчёт: {report_path}", color="blue")
+        result = create_word_report(points, wrong_cities, report_path, self.log_message)
+        if result:
+            self.log(f"Создан Word отчёт: {report_path}", color="blue")
+        else:
+            self.log(f"Ошибка создания Word отчёта: {report_path}", color="red", logger_level="error")
 
     def create_csv_report(self, points: List[PointRecord], folder: str) -> None:
         """Создание CSV отчета для точек без города."""
@@ -308,7 +323,14 @@ class CorePipeline(LoggingMixin):
 
         # Обрабатываем каждый файл
         for file_path in files:
-            parsed_points = self.file_processor.parse_file(file_path)
+            try:
+                parsed_points = self.file_processor.parse_file(file_path)
+            except FileNotFoundError as e:
+                self.log(f"Файл не найден, пропускаем: {e}", color="yellow", logger_level="warning")
+                continue
+            except Exception as e:
+                self.log(f"Ошибка парсинга файла {file_path}: {e}", color="red", logger_level="error")
+                continue
 
             if not parsed_points:  # Если список пуст
                 continue

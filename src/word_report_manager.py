@@ -218,7 +218,9 @@ def create_word_report(
                             add_normal_paragraph(line)
 
         # --- Сохраняем документ ---
-        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        report_dir = os.path.dirname(report_path)
+        if report_dir:  # Создаем директорию только если она не пустая
+            os.makedirs(report_dir, exist_ok=True)
         doc.save(report_path)
         if log_message:
             log_message(

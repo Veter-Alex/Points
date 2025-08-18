@@ -105,7 +105,11 @@ def get_area_desc(
     # Вычисляем расстояние и направление от города к точке
     distance = haversine(found_city.latitude, found_city.longitude, latitude, longitude)
     direction = get_direction(found_city.latitude, found_city.longitude, latitude, longitude)
-    coord_str = f"координаты: X={x_sk42 if x_sk42 is not None else 'N/A'} Y={y_sk42 if y_sk42 is not None else 'N/A'}"
+    
+    # Форматируем координаты X и Y как целые числа
+    x_str = f"{int(x_sk42)}" if x_sk42 is not None else 'N/A'
+    y_str = f"{int(y_sk42)}" if y_sk42 is not None else 'N/A'
+    coord_str = f"координаты: X={x_str} Y={y_str}"
 
     # Формируем описание района в зависимости от расстояния
     if distance <= 2:

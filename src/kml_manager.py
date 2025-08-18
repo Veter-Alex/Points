@@ -59,14 +59,14 @@ def create_kml_file(point: PointRecord, kml_file_path: str, log_message=None) ->
             </ListStyle>
           </Style>
           <Placemark>
-            <name>{point.date} {point.time} (X={point.x_sk42 or 'N/A'} Y={point.y_sk42 or 'N/A'})</name>
+            <name>{point.date} {point.time} (X={int(point.x_sk42) if point.x_sk42 is not None else 'N/A'} Y={int(point.y_sk42) if point.y_sk42 is not None else 'N/A'})</name>
             <description>{point.date} {point.time}
 City binding - {point.city or 'Unknown'}
 Country - {point.country or 'Unknown'}
 Latitude_SK42_GEO - {point.latitude:.4f}
 Longitude_SK42_GEO - {point.longitude:.4f}
-Latitude_SK42_Gauss_Kruger - {point.x_sk42 or 'N/A'}
-Longitude_SK42_Gauss_Kruger - {point.y_sk42 or 'N/A'}</description>
+Latitude_SK42_Gauss_Kruger - {int(point.x_sk42) if point.x_sk42 is not None else 'N/A'}
+Longitude_SK42_Gauss_Kruger - {int(point.y_sk42) if point.y_sk42 is not None else 'N/A'}</description>
             <Style>
               <LabelStyle>
                 <color>FF00FFFF</color>
@@ -92,7 +92,9 @@ Longitude_SK42_Gauss_Kruger - {point.y_sk42 or 'N/A'}</description>
 </kml>
 """
         # Создаем директорию для файла, если нужно
-        os.makedirs(os.path.dirname(kml_file_path), exist_ok=True)
+        kml_dir = os.path.dirname(kml_file_path)
+        if kml_dir:  # Создаем директорию только если она не пустая
+            os.makedirs(kml_dir, exist_ok=True)
         # Записываем KML-файл
         with open(kml_file_path, "w", encoding="utf-8") as f:
             f.write(kml_content)

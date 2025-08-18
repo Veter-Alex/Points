@@ -8,7 +8,7 @@ import glob
 # Функция для сбора DLL из geo-пакетов
 def collect_geo_dlls():
     binaries = []
-    venv_path = r'E:\Programming\Projects\Python\Points\.venv'
+    venv_path = r'D:\Projects\Points\.venv'
 
     # Пути к .libs директориям geo-пакетов
     libs_paths = [
@@ -37,7 +37,7 @@ def collect_proj_data():
             return [(proj_dir, 'share/proj')]
     except:
         # Fallback для случая если pyproj.datadir недоступен
-        venv_proj = r'E:\Programming\Projects\Python\Points\.venv\Lib\site-packages\pyproj\proj_dir'
+        venv_proj = r'D:\Projects\Points\.venv\Lib\site-packages\pyproj\proj_dir'
         if os.path.exists(venv_proj):
             return [(venv_proj, 'share/proj')]
     return []
@@ -51,7 +51,7 @@ datas = [
 ] + collect_proj_data()
 
 # Добавляем целые .libs директории
-venv_path = r'E:\Programming\Projects\Python\Points\.venv'
+venv_path = r'D:\Projects\Points\.venv'
 libs_dirs = [
     (f"{venv_path}\\Lib\\site-packages\\pyproj.libs", "pyproj.libs"),
     (f"{venv_path}\\Lib\\site-packages\\Shapely.libs", "Shapely.libs"),
