@@ -12,7 +12,7 @@ import shutil
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from models.points import PointRecord
 
@@ -256,7 +256,10 @@ class XMLParser(BaseParser):
             self._parse_point_format,
             self._parse_devexpert_format,
             self._parse_openweathermap_format,
-            self._parse_openweathermap_forecast_format
+            self._parse_openweathermap_forecast_format,
+            self._parse_settings_client_format,
+            self._parse_document_items_format,
+            self._parse_hhforecast_format
         ]
 
         for parser in parsers:
@@ -420,6 +423,109 @@ class XMLParser(BaseParser):
             'country': country_val
         }
 
+    def _parse_settings_client_format(self, root) -> Optional[Dict[str, Any]]:
+        """Парсинг формата <settings> с элементом <client>."""
+        if root.tag != "settings":
+            return None
+            
+        client = root.find(".//client")
+        if client is None:
+            return None
+
+        lat_val = client.attrib.get("lat")
+        lon_val = client.attrib.get("lon")
+        country_val = client.attrib.get("country")
+        
+        # В этом формате нет информации о городе, дате и времени
+        city_val = None
+        date_val = None
+        time_val = None
+
+        return {
+            'latitude': CoordinateExtractor.safe_float(lat_val),
+            'longitude': CoordinateExtractor.safe_float(lon_val),
+            'date': date_val,
+            'time': time_val,
+            'city': city_val,
+            'country': country_val
+        }
+
+    def _parse_document_items_format(self, root) -> Optional[Dict[str, Any]]:
+        """
+        Парсинг формата <document> с элементами <item>.
+        Поддерживает файлы с одной или несколькими точками.
+        Возвращает первую найденную точку для совместимости с текущей архитектурой.
+        """
+        if root.tag != "document":
+            return None
+        
+        # Находим все элементы item
+        items = root.findall(".//item")
+        if not items:
+            return None
+        
+        # Берем первый элемент (можно потом расширить для обработки всех)
+        first_item = items[0]
+        
+        # Извлекаем данные из атрибутов
+        lat_val = first_item.attrib.get("lat")
+        lon_val = first_item.attrib.get("lng")  # Обратите внимание: lng, а не lon
+        city_val = first_item.attrib.get("n")   # n = название/имя места
+        country_val = first_item.attrib.get("country_name")
+        
+        # Дата и время не указаны в этом формате
+        date_val = None
+        time_val = None
+        
+        # Логируем информацию о количестве точек, если их несколько
+        if len(items) > 1 and hasattr(self, 'log_message') and self.log_message:
+            self.log_message(
+                f"Файл содержит {len(items)} точек. Обрабатывается только первая.",
+                color="orange",
+                logger_level="info"
+            )
+
+        return {
+            'latitude': CoordinateExtractor.safe_float(lat_val),
+            'longitude': CoordinateExtractor.safe_float(lon_val),
+            'date': date_val,
+            'time': time_val,
+            'city': city_val,
+            'country': country_val
+        }
+
+    def _parse_hhforecast_format(self, root) -> Optional[Dict[str, Any]]:
+        """
+        Парсинг формата <document> с элементом <GetHHForecastResult>.
+        Извлекает данные о местоположении из прогноза погоды.
+        """
+        if root.tag != "document":
+            return None
+        
+        # Ищем элемент GetHHForecastResult
+        forecast_result = root.find(".//GetHHForecastResult")
+        if forecast_result is None:
+            return None
+        
+        # Извлекаем данные из атрибутов GetHHForecastResult
+        lat_val = forecast_result.attrib.get("lat")
+        lon_val = forecast_result.attrib.get("lng")
+        city_val = forecast_result.attrib.get("cityName")
+        country_val = forecast_result.attrib.get("country_name")
+        
+        # Получаем дату и время из метаданных файла, а не из XML
+        date_val = None
+        time_val = None
+
+        return {
+            'latitude': CoordinateExtractor.safe_float(lat_val),
+            'longitude': CoordinateExtractor.safe_float(lon_val),
+            'date': date_val,
+            'time': time_val,
+            'city': city_val,
+            'country': country_val
+        }
+
     def _parse_iso_datetime(self, dt_str: str) -> Tuple[Optional[str], Optional[str]]:
         """Парсинг ISO формата даты/времени."""
         if "T" in dt_str:
@@ -459,7 +565,8 @@ class JSONParser(BaseParser):
                  self._parse_geoip_format(data) or
                  self._parse_openweathermap_format(data) or
                  self._parse_cityinfo_format(data) or
-                 self._parse_accuweather_format(data))
+                 self._parse_accuweather_format(data) or
+                 self._parse_geoplugin_format(data))
 
         if result:
             latitude, longitude, city, country, date_val, time_val = result
@@ -619,6 +726,24 @@ class JSONParser(BaseParser):
         # Для формата AccuWeather не извлекаем дату/время из JSON - используем атрибуты файла
         return latitude, longitude, city, country, None, None
 
+    def _parse_geoplugin_format(self, data: Dict) -> Optional[Tuple]:
+        """Парсинг формата GeoPlugin (geoplugin_latitude, geoplugin_longitude)."""
+        if "geoplugin_latitude" not in data or "geoplugin_longitude" not in data:
+            return None
+
+        latitude = CoordinateExtractor.safe_float(str(data["geoplugin_latitude"]))
+        longitude = CoordinateExtractor.safe_float(str(data["geoplugin_longitude"]))
+
+        if latitude is None or longitude is None:
+            return None
+
+        # Извлекаем город и страну
+        city = data.get("geoplugin_city")
+        country = data.get("geoplugin_countryName")
+
+        # Для формата GeoPlugin не извлекаем дату/время из JSON - используем атрибуты файла
+        return latitude, longitude, city, country, None, None
+
     def _extract_additional_datetime(self, data: Dict, current_date: Optional[str],
                                    current_time: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
         """Извлечение даты/времени из дополнительных полей."""
@@ -694,4 +819,119 @@ def safe_float(val: Optional[str]) -> Optional[float]:
 def normalize_datetime(date_val: str, time_val: str) -> Tuple[str, str]:
     """Обратная совместимость."""
     return DateTimeExtractor.normalize_datetime(date_val, time_val)
+
+
+def parse_xml_multiple_points(xml_path: str, log_message=None) -> List[PointRecord]:
+    """
+    Специальная функция для парсинга XML файлов с множественными точками.
+    Поддерживает формат <document> с элементами <item>.
+    
+    Args:
+        xml_path (str): Путь к XML файлу.
+        log_message (callable, optional): Функция для логирования.
+        
+    Returns:
+        List[PointRecord]: Список объектов PointRecord или пустой список.
+    """
+    try:
+        with open(xml_path, encoding="utf-8") as f:
+            content = f.read()
+            
+        tree = ET.ElementTree(ET.fromstring(content))
+        root = tree.getroot()
+        
+        # Проверяем, что это формат document с items или HHForecast
+        if root.tag != "document":
+            # Если не document формат, возвращаем результат обычного парсера
+            result = parse_xml(xml_path, log_message)
+            return [result] if result else []
+        
+        # Проверяем наличие items (множественные точки)
+        items = root.findall(".//item")
+        if items:
+            # Обрабатываем формат с items
+            points = []
+            for item in items:
+                # Извлекаем данные из каждого item
+                lat_val = item.attrib.get("lat")
+                lon_val = item.attrib.get("lng")
+                city_val = item.attrib.get("n")
+                country_val = item.attrib.get("country_name")
+                
+                # Проверяем обязательные поля
+                latitude = CoordinateExtractor.safe_float(lat_val)
+                longitude = CoordinateExtractor.safe_float(lon_val)
+                
+                if latitude is None or longitude is None:
+                    if log_message:
+                        log_message(f"Пропущен item с невалидными координатами: lat={lat_val}, lng={lon_val}", 
+                                  color="orange", logger_level="warning")
+                    continue
+                
+                # Получаем дату и время из метаданных файла
+                date_val, time_val = DateTimeExtractor.extract_from_file_metadata(xml_path)
+                if date_val and time_val:
+                    date_val, time_val = DateTimeExtractor.normalize_datetime(date_val, time_val)
+                
+                # Создаем PointRecord
+                try:
+                    point = PointRecord(
+                        date=date_val or "",
+                        time=time_val or "",
+                        latitude=latitude,
+                        longitude=longitude,
+                        x_sk42=None,
+                        y_sk42=None,
+                        country=country_val or "",
+                        city=city_val or "",
+                        area_desc="",
+                        region_desc="",
+                        original_text=content,
+                        file_path=xml_path,
+                    )
+                    points.append(point)
+                    
+                except Exception as e:
+                    if log_message:
+                        log_message(f"Ошибка создания точки: {e}", color="red", logger_level="error")
+                    continue
+            
+            if log_message and points:
+                log_message(f"Извлечено {len(points)} точек из {len(items)} элементов", 
+                           color="blue", logger_level="info")
+            
+            return points
+        
+        # Если нет items, возвращаем результат обычного парсера (включая HHForecast)
+        result = parse_xml(xml_path, log_message)
+        return [result] if result else []
+        
+    except Exception as e:
+        if log_message:
+            log_message(f"Ошибка парсинга файла с множественными точками: {e}", 
+                       color="red", logger_level="error")
+        return []
+
+
+def parse_json_multiple_points(json_path: str, log_message=None) -> List[PointRecord]:
+    """
+    Универсальный парсер JSON-файла с поддержкой множественных точек.
+    
+    Args:
+        json_path (str): Путь к JSON файлу.
+        log_message: Функция для логирования сообщений.
+        
+    Returns:
+        List[PointRecord]: Список извлеченных точек.
+    """
+    try:
+        # Для JSON чаще всего одна точка на файл, но поддерживаем множественные
+        result = parse_json(json_path, log_message)
+        return [result] if result else []
+        
+    except Exception as e:
+        if log_message:
+            log_message(f"Ошибка парсинга JSON файла с множественными точками: {e}", 
+                       color="red", logger_level="error")
+        return []
 

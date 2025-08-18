@@ -11,7 +11,7 @@
 import csv
 import os
 from abc import ABC, abstractmethod
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 from models.city import CityData, CityRecord
 from models.points import PointRecord, PointsData
@@ -21,7 +21,7 @@ from src.excel_manager import save_points_to_excel, save_points_without_city_to_
 from src.file_manager import find_folders_missing_data_csv
 from src.geo_manager import get_country_by_lat_lon, get_sk42_coordinates
 from src.kml_manager import create_kml_file
-from src.parsers import parse_json, parse_xml
+from src.parsers import parse_json, parse_xml, parse_xml_multiple_points
 from src.points_manager import (
     find_point_by_lat_lon,
     new_point_from_city_data,
@@ -62,8 +62,15 @@ class CoordinateHelper:
                     log_message(msg)
             log_func = wrapped_log_message
         else:
-            log_func = self.log_message
-        return get_sk42_coordinates(lat, lon, log_func)
+            # Ensure log_func is always a callable with the expected signature
+            def default_log_message(msg, color=None, logger_level=None):
+                pass
+            log_func = self.log_message if self.log_message is not None else default_log_message
+        sk42_lat, sk42_lon = get_sk42_coordinates(lat, lon, log_func)
+        # Ensure the return values are floats, not None
+        lat_result = float(sk42_lat) if sk42_lat is not None else 0.0
+        lon_result = float(sk42_lon) if sk42_lon is not None else 0.0
+        return lat_result, lon_result
 
 
 class FolderProcessor(LoggingMixin):
@@ -88,23 +95,45 @@ class FolderProcessor(LoggingMixin):
 
 
 class FileProcessor(LoggingMixin):
-    """Обработчик отдельных файлов."""
+    """Обработчик отдельных файлов с поддержкой множественных точек."""
 
     def __init__(self, log_message: Optional[Callable] = None):
         super().__init__(log_message)
 
-    def parse_file(self, file_path: str) -> Optional[PointRecord]:
-        """Парсинг одного файла."""
+    def parse_file(self, file_path: str) -> List[PointRecord]:
+        """
+        Парсинг одного файла с возможностью извлечения множественных точек.
+        
+        Returns:
+            List[PointRecord]: Список точек (может быть пустым или содержать одну/несколько точек).
+        """
         file_name = os.path.basename(file_path)
+        points = []
 
         if file_path.lower().endswith('.xml'):
             self.log(f"Парсинг XML: {file_name}")
-            return parse_xml(file_path, self.log_message)
+            
+            # Сначала пробуем извлечь множественные точки
+            multiple_points = parse_xml_multiple_points(file_path, self.log_message)
+            
+            if len(multiple_points) > 1:
+                self.log(f"Найдено {len(multiple_points)} точек в файле", color="green")
+                points = multiple_points
+            elif len(multiple_points) == 1:
+                points = multiple_points
+            else:
+                # Если функция множественных точек не сработала, используем обычный парсер
+                single_point = parse_xml(file_path, self.log_message)
+                if single_point:
+                    points = [single_point]
+                    
         elif file_path.lower().endswith('.json'):
             self.log(f"Парсинг JSON: {file_name}")
-            return parse_json(file_path, self.log_message)
+            single_point = parse_json(file_path, self.log_message)
+            if single_point:
+                points = [single_point]
 
-        return None
+        return points
 
 
 class PointProcessor(LoggingMixin):
@@ -279,28 +308,30 @@ class CorePipeline(LoggingMixin):
 
         # Обрабатываем каждый файл
         for file_path in files:
-            parsed_point = self.file_processor.parse_file(file_path)
+            parsed_points = self.file_processor.parse_file(file_path)
 
-            if parsed_point is None:
+            if not parsed_points:  # Если список пуст
                 continue
 
-            new_point: Optional[PointRecord] = None
+            # Обрабатываем каждую точку из файла
+            for parsed_point in parsed_points:
+                new_point: Optional[PointRecord] = None
 
-            if parsed_point.city is not None:
-                # Обработка точки с городом
-                new_point, wrong_city = self.point_processor.process_point_with_city(parsed_point)
-                if wrong_city:
-                    wrong_city_data_folder.append(wrong_city)
-            else:
-                # Обработка точки без города
-                new_point, point_to_edit = self.point_processor.process_point_without_city(parsed_point)
-                if point_to_edit:
-                    points_to_edit_folder.append(point_to_edit)
+                if parsed_point.city is not None:
+                    # Обработка точки с городом
+                    new_point, wrong_city = self.point_processor.process_point_with_city(parsed_point)
+                    if wrong_city:
+                        wrong_city_data_folder.append(wrong_city)
+                else:
+                    # Обработка точки без города
+                    new_point, point_to_edit = self.point_processor.process_point_without_city(parsed_point)
+                    if point_to_edit:
+                        points_to_edit_folder.append(point_to_edit)
 
-            # Добавляем новую точку в коллекции
-            if new_point is not None:
-                self.point_processor.add_point_to_data(new_point)
-                points_folder.append(new_point)
+                # Добавляем новую точку в коллекции
+                if new_point is not None:
+                    self.point_processor.add_point_to_data(new_point)
+                    points_folder.append(new_point)
 
         # Создаем отчеты
         self._generate_reports(folder, points_folder, wrong_city_data_folder, points_to_edit_folder)
